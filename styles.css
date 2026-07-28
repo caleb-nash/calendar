@@ -613,27 +613,24 @@ body {
   line-height: 1.4;
 }
 
-.freq-btn {
-  display: block;
-  background: var(--c-goal-soft);
-  border: 1px solid var(--c-goal);
-  color: var(--c-goal);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+.segmented.goal-freq {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 12px;
-  min-width: 120px;
-  transition: background 0.18s var(--ease), opacity 0.18s var(--ease);
 }
 
-.freq-btn:hover:not(:disabled) {
-  background: var(--c-goal);
-  color: var(--bg);
+.goal-freq .seg-btn {
+  min-width: 0;
+  padding: 10px 6px;
 }
 
-.freq-btn:disabled {
+.goal-freq .seg-btn.active {
+  border-color: var(--c-goal);
+  color: var(--c-goal);
+  background: var(--c-goal-soft);
+}
+
+.seg-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }

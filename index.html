@@ -106,7 +106,12 @@
 
           <div class="field-group" id="goalRepeatGroup" hidden>
             <span class="field-label">Frequency</span>
-            <button type="button" class="freq-btn" id="freqBtn" data-frequency="daily">Daily</button>
+            <div class="segmented goal-freq" id="goalFreqMode">
+              <button type="button" class="seg-btn" data-freq="daily">Daily</button>
+              <button type="button" class="seg-btn" data-freq="weekly">Weekly</button>
+              <button type="button" class="seg-btn" data-freq="monthly">Monthly</button>
+              <button type="button" class="seg-btn" data-freq="yearly">Yearly</button>
+            </div>
             <label class="repeat-checkbox-label">
               <input type="checkbox" id="repeatCheckbox" />
               Repeats &mdash; keep recurring at this frequency instead of a one-time goal
