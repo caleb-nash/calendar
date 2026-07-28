@@ -18,6 +18,7 @@
     selectedType: null,
     selectedRepeat: null,
     goalFrequency: "daily",
+    goalForever: false,
   };
 
   // ---------- Elements ----------
@@ -51,7 +52,7 @@
   const formTime = document.getElementById("formTime");
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
   const goalFreqMode = document.getElementById("goalFreqMode");
-  const repeatCheckbox = document.getElementById("repeatCheckbox");
+  const foreverBtn = document.getElementById("foreverBtn");
   const singleTextWrap = document.getElementById("singleTextWrap");
   const singleTextLabel = document.getElementById("singleTextLabel");
   const formText = document.getElementById("formText");
@@ -331,11 +332,11 @@
     addCycleRow();
     addCycleRow();
 
-    goalFreqMode.querySelectorAll(".seg-btn").forEach((b) => {
+    state.goalForever = false;
+    goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
       b.classList.toggle("active", b.dataset.freq === "daily");
-      b.disabled = true;
     });
-    repeatCheckbox.checked = false;
+    foreverBtn.classList.remove("active");
 
     typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.remove("active"));
     repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
@@ -459,7 +460,7 @@
     } else if (type === "goal") {
       const text = formText.value.trim();
       if (!text) return;
-      if (repeatCheckbox.checked) {
+      if (state.goalForever) {
         state.data.routines.push({
           id: uid(),
           type: "goal",
@@ -568,15 +569,16 @@
   goalFreqMode.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
     if (!btn) return;
-    goalFreqMode.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+
+    if (btn === foreverBtn) {
+      state.goalForever = !state.goalForever;
+      foreverBtn.classList.toggle("active", state.goalForever);
+      return;
+    }
+
+    goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     state.goalFrequency = btn.dataset.freq;
-  });
-
-  repeatCheckbox.addEventListener("change", () => {
-    goalFreqMode.querySelectorAll(".seg-btn").forEach((b) => {
-      b.disabled = !repeatCheckbox.checked;
-    });
   });
 
   repeatModeEl.addEventListener("click", (e) => {
