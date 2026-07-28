@@ -11,6 +11,10 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">&#10022;</span> Calendar</div>
+      <button class="add-event-btn" id="addEventBtn" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Add Event
+      </button>
     </header>
 
     <main class="calendar-wrap">
@@ -35,8 +39,8 @@
       </section>
     </main>
 
+    <!-- Day detail panel -->
     <div class="panel-backdrop" id="panelBackdrop"></div>
-
     <aside class="day-panel" id="dayPanel" aria-hidden="true">
       <div class="day-panel-inner">
         <div class="day-panel-header">
@@ -44,23 +48,77 @@
             <div class="day-panel-weekday" id="panelWeekday">Monday</div>
             <div class="day-panel-date" id="panelDate">July 27, 2026</div>
           </div>
-          <button class="close-btn" id="closePanelBtn" aria-label="Close" type="button">
+          <div class="day-panel-actions">
+            <button class="icon-btn" id="panelAddBtn" aria-label="Add event on this day" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <button class="icon-btn" id="closePanelBtn" aria-label="Close" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <ul class="event-list" id="eventList"></ul>
+        <p class="empty-state" id="emptyState">Nothing scheduled. Tap + to add something.</p>
+      </div>
+    </aside>
+
+    <!-- Add event modal -->
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="add-modal" id="addModal" aria-hidden="true">
+      <div class="add-modal-inner">
+        <div class="add-modal-header">
+          <h2>Add Event</h2>
+          <button class="icon-btn" id="closeModalBtn" aria-label="Close" type="button">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
         </div>
 
-        <ul class="event-list" id="eventList"></ul>
-        <p class="empty-state" id="emptyState">No events yet. Add the first one below.</p>
+        <form id="addForm" novalidate>
+          <div class="field-group">
+            <label class="field-label" for="formDate">Date</label>
+            <input type="date" id="formDate" required />
+          </div>
 
-        <form class="add-event-form" id="addEventForm">
-          <input type="time" id="eventTime" class="time-input" />
-          <input type="text" id="eventText" class="text-input" placeholder="Add an event or note&hellip;" maxlength="120" autocomplete="off" />
-          <button type="submit" class="add-btn" aria-label="Add event">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
+          <div class="field-group">
+            <span class="field-label">Type</span>
+            <div class="type-picker" id="typePicker">
+              <button type="button" class="type-btn type-routine" data-type="routine">Daily Routine</button>
+              <button type="button" class="type-btn type-event" data-type="event">Daily Event</button>
+              <button type="button" class="type-btn type-goal" data-type="goal">Goal</button>
+            </div>
+          </div>
+
+          <div class="field-group" id="repeatModeGroup" hidden>
+            <span class="field-label">Repeat</span>
+            <div class="segmented" id="repeatMode">
+              <button type="button" class="seg-btn" data-repeat="daily">Every day</button>
+              <button type="button" class="seg-btn" data-repeat="weekly">Weekly</button>
+              <button type="button" class="seg-btn" data-repeat="cycle">Forever (cycle)</button>
+            </div>
+            <p class="hint" id="repeatHint"></p>
+          </div>
+
+          <div class="field-group" id="timeFieldWrap" hidden>
+            <label class="field-label" for="formTime">Time (optional)</label>
+            <input type="time" id="formTime" />
+          </div>
+
+          <div class="field-group" id="singleTextWrap" hidden>
+            <label class="field-label" for="formText" id="singleTextLabel">Description</label>
+            <input type="text" id="formText" maxlength="120" placeholder="What's this for?" autocomplete="off" />
+          </div>
+
+          <div class="field-group" id="cycleFieldWrap" hidden>
+            <span class="field-label">Cycle, in order &mdash; repeats forever</span>
+            <div class="cycle-items" id="cycleItems"></div>
+            <button type="button" class="add-cycle-btn" id="addCycleItemBtn">+ Add day</button>
+          </div>
+
+          <button type="submit" class="save-btn" id="saveBtn" disabled>Save</button>
         </form>
       </div>
-    </aside>
+    </div>
   </div>
 
   <script src="app.js"></script>
