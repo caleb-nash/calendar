@@ -84,7 +84,7 @@
             <span class="field-label">Type</span>
             <div class="type-picker" id="typePicker">
               <button type="button" class="type-btn type-routine" data-type="routine">Daily Routine</button>
-              <button type="button" class="type-btn type-event" data-type="event">Daily Event</button>
+              <button type="button" class="type-btn type-event" data-type="event">Event</button>
               <button type="button" class="type-btn type-goal" data-type="goal">Goal</button>
             </div>
           </div>
@@ -102,6 +102,15 @@
           <div class="field-group" id="timeFieldWrap" hidden>
             <label class="field-label" for="formTime">Time (optional)</label>
             <input type="time" id="formTime" />
+          </div>
+
+          <div class="field-group" id="goalRepeatGroup" hidden>
+            <span class="field-label">Frequency</span>
+            <button type="button" class="freq-btn" id="freqBtn" data-frequency="daily">Daily</button>
+            <label class="repeat-checkbox-label">
+              <input type="checkbox" id="repeatCheckbox" />
+              Repeats &mdash; keep recurring at this frequency instead of a one-time goal
+            </label>
           </div>
 
           <div class="field-group" id="singleTextWrap" hidden>

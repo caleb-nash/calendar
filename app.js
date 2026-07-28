@@ -6,6 +6,8 @@
   const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const TYPE_LABELS = { event: "Event", goal: "Goal", routine: "Routine" };
+  const FREQ_ORDER = ["daily", "weekly", "monthly", "yearly"];
+  const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -17,6 +19,7 @@
     data: loadData(),
     selectedType: null,
     selectedRepeat: null,
+    goalFrequency: "daily",
   };
 
   // ---------- Elements ----------
@@ -48,6 +51,9 @@
   const repeatHint = document.getElementById("repeatHint");
   const timeFieldWrap = document.getElementById("timeFieldWrap");
   const formTime = document.getElementById("formTime");
+  const goalRepeatGroup = document.getElementById("goalRepeatGroup");
+  const freqBtn = document.getElementById("freqBtn");
+  const repeatCheckbox = document.getElementById("repeatCheckbox");
   const singleTextWrap = document.getElementById("singleTextWrap");
   const singleTextLabel = document.getElementById("singleTextLabel");
   const formText = document.getElementById("formText");
@@ -132,6 +138,14 @@
       const idx = ((dayDiff % n) + n) % n;
       return { text: routine.items[idx], time: routine.time };
     }
+    if (routine.repeat === "monthly") {
+      if (target.getDate() !== start.getDate()) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "yearly") {
+      if (target.getDate() !== start.getDate() || target.getMonth() !== start.getMonth()) return null;
+      return { text: routine.text, time: routine.time };
+    }
     return null;
   }
 
@@ -143,7 +157,7 @@
     state.data.routines.forEach((r) => {
       const occ = getRoutineOccurrence(r, key);
       if (occ) {
-        items.push({ id: r.id, type: "routine", time: occ.time, text: occ.text, source: "routine", repeat: r.repeat });
+        items.push({ id: r.id, type: r.type || "routine", time: occ.time, text: occ.text, source: "routine", repeat: r.repeat });
       }
     });
     items.sort((a, b) => {
@@ -310,6 +324,7 @@
   function resetAddForm(presetKey) {
     state.selectedType = null;
     state.selectedRepeat = null;
+    state.goalFrequency = "daily";
     formDate.value = presetKey || state.selectedDate || todayKey();
     formTime.value = "";
     formText.value = "";
@@ -318,11 +333,17 @@
     addCycleRow();
     addCycleRow();
 
+    freqBtn.dataset.frequency = "daily";
+    freqBtn.textContent = FREQ_LABELS.daily;
+    freqBtn.disabled = true;
+    repeatCheckbox.checked = false;
+
     typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.remove("active"));
     repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
     repeatModeGroup.hidden = true;
     repeatHint.textContent = "";
     timeFieldWrap.hidden = true;
+    goalRepeatGroup.hidden = true;
     singleTextWrap.hidden = true;
     cycleFieldWrap.hidden = true;
     saveBtn.disabled = true;
@@ -350,6 +371,7 @@
   function updateFieldsForType() {
     const type = state.selectedType;
     repeatModeGroup.hidden = type !== "routine";
+    goalRepeatGroup.hidden = type !== "goal";
 
     if (type === "routine") {
       const repeat = state.selectedRepeat;
@@ -359,12 +381,18 @@
       singleTextLabel.textContent = "Routine name";
       formText.placeholder = "e.g. Morning run";
       repeatHint.textContent = repeat ? REPEAT_HINTS[repeat] : "";
-    } else if (type === "event" || type === "goal") {
+    } else if (type === "event") {
       timeFieldWrap.hidden = false;
       singleTextWrap.hidden = false;
       cycleFieldWrap.hidden = true;
       singleTextLabel.textContent = "Description";
       formText.placeholder = "What's this for?";
+    } else if (type === "goal") {
+      timeFieldWrap.hidden = true;
+      singleTextWrap.hidden = false;
+      cycleFieldWrap.hidden = true;
+      singleTextLabel.textContent = "Goal";
+      formText.placeholder = "What's the goal?";
     } else {
       timeFieldWrap.hidden = true;
       singleTextWrap.hidden = true;
@@ -419,7 +447,7 @@
     const key = formDate.value;
     if (!type || !key) return;
 
-    if (type === "event" || type === "goal") {
+    if (type === "event") {
       const text = formText.value.trim();
       if (!text) return;
       if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
@@ -429,6 +457,27 @@
         time: formTime.value || null,
         text,
       });
+    } else if (type === "goal") {
+      const text = formText.value.trim();
+      if (!text) return;
+      if (repeatCheckbox.checked) {
+        state.data.routines.push({
+          id: uid(),
+          type: "goal",
+          repeat: state.goalFrequency,
+          startDate: key,
+          time: null,
+          text,
+        });
+      } else {
+        if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
+        state.data.singleEvents[key].push({
+          id: uid(),
+          type: "goal",
+          time: null,
+          text,
+        });
+      }
     } else if (type === "routine") {
       const repeat = state.selectedRepeat;
       if (!repeat) return;
@@ -439,6 +488,7 @@
         if (items.length === 0) return;
         state.data.routines.push({
           id: uid(),
+          type: "routine",
           repeat: "cycle",
           startDate: key,
           time: formTime.value || null,
@@ -449,6 +499,7 @@
         if (!text) return;
         state.data.routines.push({
           id: uid(),
+          type: "routine",
           repeat,
           startDate: key,
           time: formTime.value || null,
@@ -513,6 +564,18 @@
     state.selectedRepeat = null;
     repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
     updateFieldsForType();
+  });
+
+  freqBtn.addEventListener("click", () => {
+    const currentIdx = FREQ_ORDER.indexOf(state.goalFrequency);
+    const next = FREQ_ORDER[(currentIdx + 1) % FREQ_ORDER.length];
+    state.goalFrequency = next;
+    freqBtn.dataset.frequency = next;
+    freqBtn.textContent = FREQ_LABELS[next];
+  });
+
+  repeatCheckbox.addEventListener("change", () => {
+    freqBtn.disabled = !repeatCheckbox.checked;
   });
 
   repeatModeEl.addEventListener("click", (e) => {
