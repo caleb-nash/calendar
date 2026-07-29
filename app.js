@@ -20,6 +20,10 @@
     goalFrequency: "daily",
     eventRepeatDays: new Set(),
     eventForever: false,
+    multiDayPicking: false,
+    multiDayText: "",
+    multiDayTime: null,
+    multiDaySelectedDates: new Set(),
   };
 
   // ---------- Elements ----------
@@ -64,6 +68,12 @@
   const cycleItemsEl = document.getElementById("cycleItems");
   const addCycleItemBtn = document.getElementById("addCycleItemBtn");
   const saveBtn = document.getElementById("saveBtn");
+
+  const multiDayBtn = document.getElementById("multiDayBtn");
+  const multiDayBar = document.getElementById("multiDayBar");
+  const multiDayCount = document.getElementById("multiDayCount");
+  const multiDayCancelBtn = document.getElementById("multiDayCancelBtn");
+  const multiDaySaveBtn = document.getElementById("multiDaySaveBtn");
 
   const REPEAT_HINTS = {
     daily: "Repeats every single day starting from the date above.",
@@ -223,6 +233,7 @@
       if (otherMonth) classes.push("other-month");
       if (isToday) classes.push("today");
       if (isSelected) classes.push("selected");
+      if (state.multiDayPicking && state.multiDaySelectedDates.has(key)) classes.push("multi-picked");
 
       const dots = dayItems
         .slice(0, 3)
@@ -354,6 +365,7 @@
     singleTextWrap.hidden = true;
     cycleFieldWrap.hidden = true;
     saveBtn.disabled = true;
+    multiDayBtn.disabled = true;
   }
 
   function addCycleRow(value) {
@@ -412,6 +424,8 @@
 
   function updateSaveEnabled() {
     const type = state.selectedType;
+    multiDayBtn.disabled = type !== "event" || formText.value.trim().length === 0;
+
     if (!type || !formDate.value) {
       saveBtn.disabled = true;
       return;
@@ -447,6 +461,51 @@
     addModal.classList.remove("open");
     addModal.setAttribute("aria-hidden", "true");
     modalBackdrop.classList.remove("visible");
+  }
+
+  // ---------- Multi-day picking ----------
+  function updateMultiDayBar() {
+    const n = state.multiDaySelectedDates.size;
+    multiDayCount.textContent = `${n} day${n === 1 ? "" : "s"} selected`;
+    multiDaySaveBtn.disabled = n === 0;
+  }
+
+  function enterMultiDayPicking() {
+    const text = formText.value.trim();
+    if (!text) {
+      formText.focus();
+      return;
+    }
+    state.multiDayText = text;
+    state.multiDayTime = formTime.value || null;
+    state.multiDaySelectedDates = new Set();
+    state.multiDayPicking = true;
+    closeAddModal();
+    updateMultiDayBar();
+    multiDayBar.classList.add("visible");
+    renderMonth();
+  }
+
+  function exitMultiDayPicking() {
+    state.multiDayPicking = false;
+    multiDayBar.classList.remove("visible");
+    renderMonth();
+  }
+
+  function saveMultiDayEvents() {
+    state.multiDaySelectedDates.forEach((key) => {
+      if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
+      state.data.singleEvents[key].push({
+        id: uid(),
+        type: "event",
+        time: state.multiDayTime,
+        text: state.multiDayText,
+      });
+    });
+    saveData();
+    exitMultiDayPicking();
+    renderMonth();
+    renderTodayPanel();
   }
 
   function submitAddForm(e) {
@@ -533,16 +592,40 @@
     const cell = e.target.closest(".day-cell");
     if (!cell) return;
     const { year, month, day } = cell.dataset;
-    state.selectedDate = dateKey(Number(year), Number(month), Number(day));
+    const key = dateKey(Number(year), Number(month), Number(day));
+
+    if (state.multiDayPicking) {
+      if (state.multiDaySelectedDates.has(key)) {
+        state.multiDaySelectedDates.delete(key);
+        cell.classList.remove("multi-picked");
+      } else {
+        state.multiDaySelectedDates.add(key);
+        cell.classList.add("multi-picked");
+      }
+      updateMultiDayBar();
+      return;
+    }
+
+    state.selectedDate = key;
     renderMonth();
     renderTodayPanel();
     if (todayPanel.classList.contains("collapsed")) setTodayPanelHidden(false);
   });
 
-  todayPanelAddBtn.addEventListener("click", () => openAddModal(currentPanelKey()));
-  addEventBtn.addEventListener("click", () => openAddModal(currentPanelKey()));
+  todayPanelAddBtn.addEventListener("click", () => {
+    if (state.multiDayPicking) return;
+    openAddModal(currentPanelKey());
+  });
+  addEventBtn.addEventListener("click", () => {
+    if (state.multiDayPicking) return;
+    openAddModal(currentPanelKey());
+  });
   closeModalBtn.addEventListener("click", closeAddModal);
   modalBackdrop.addEventListener("click", closeAddModal);
+
+  multiDayBtn.addEventListener("click", enterMultiDayPicking);
+  multiDayCancelBtn.addEventListener("click", exitMultiDayPicking);
+  multiDaySaveBtn.addEventListener("click", saveMultiDayEvents);
 
   todayEventListEl.addEventListener("click", (e) => {
     const completeBtn = e.target.closest(".complete-btn");
@@ -664,6 +747,8 @@
     if (e.key === "Escape") {
       if (addModal.classList.contains("open")) {
         closeAddModal();
+      } else if (state.multiDayPicking) {
+        exitMultiDayPicking();
       }
       return;
     }

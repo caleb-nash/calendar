@@ -318,6 +318,12 @@ body {
   color: var(--accent-strong);
 }
 
+.day-cell.multi-picked {
+  background: var(--c-event-soft);
+  border-color: var(--c-event);
+  color: var(--accent-strong);
+}
+
 .day-num {
   line-height: 1;
 }
@@ -715,6 +721,31 @@ body {
   background: var(--c-event-soft);
 }
 
+.multi-day-btn {
+  display: block;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.multi-day-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.multi-day-btn:hover:not(:disabled) {
+  border-color: var(--c-event);
+  color: var(--accent-strong);
+  background: var(--c-event-soft);
+}
+
 .segmented.goal-freq {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -910,4 +941,74 @@ body {
   .seg-btn {
     min-width: 90px;
   }
+}
+
+/* ---------- Multi-day picking bar ---------- */
+.multiday-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 150%);
+  background: #1c1c21;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 10px 10px 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: var(--shadow-lg);
+  z-index: 80;
+  pointer-events: none;
+  transition: transform 0.3s var(--ease);
+}
+
+.multiday-bar.visible {
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+#multiDayCount {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.multiday-bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.multiday-cancel-btn,
+.multiday-save-btn {
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 18px;
+  cursor: pointer;
+}
+
+.multiday-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.multiday-cancel-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.multiday-save-btn {
+  background: var(--accent);
+  border: none;
+  color: var(--bg);
+}
+
+.multiday-save-btn:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.multiday-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
