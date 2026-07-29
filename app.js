@@ -39,6 +39,14 @@
   const eventListEl = document.getElementById("eventList");
   const emptyStateEl = document.getElementById("emptyState");
 
+  const todayPanel = document.getElementById("todayPanel");
+  const toggleTodayPanelBtn = document.getElementById("toggleTodayPanelBtn");
+  const closeTodayPanelBtn = document.getElementById("closeTodayPanelBtn");
+  const todayPanelDate = document.getElementById("todayPanelDate");
+  const todayEventListEl = document.getElementById("todayEventList");
+  const todayEmptyStateEl = document.getElementById("todayEmptyState");
+  const TODAY_PANEL_KEY = "calendar_today_panel_hidden";
+
   const modalBackdrop = document.getElementById("modalBackdrop");
   const addModal = document.getElementById("addModal");
   const closeModalBtn = document.getElementById("closeModalBtn");
@@ -273,38 +281,51 @@
     renderMonth();
   }
 
+  function renderItemsList(listEl, emptyEl, items) {
+    if (items.length === 0) {
+      listEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+    listEl.innerHTML = items
+      .map(
+        (it) => `
+      <li class="event-item type-${it.type}" data-id="${it.id}" data-source="${it.source}">
+        <div class="event-main">
+          <span class="event-badge">${TYPE_LABELS[it.type]}</span>
+          <span class="event-text">${escapeHtml(it.text)}</span>
+        </div>
+        ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
+        <button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>
+      </li>
+    `
+      )
+      .join("");
+  }
+
   function renderPanel(key) {
     const [y, m, d] = key.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
     panelWeekday.textContent = WEEKDAYS_LONG[dt.getDay()];
     panelDate.textContent = `${MONTHS[m - 1]} ${d}, ${y}`;
-
-    const items = getItemsForDate(key);
-
-    if (items.length === 0) {
-      eventListEl.innerHTML = "";
-      emptyStateEl.style.display = "block";
-    } else {
-      emptyStateEl.style.display = "none";
-      eventListEl.innerHTML = items
-        .map(
-          (it) => `
-        <li class="event-item type-${it.type}" data-id="${it.id}" data-source="${it.source}">
-          <div class="event-main">
-            <span class="event-badge">${TYPE_LABELS[it.type]}</span>
-            <span class="event-text">${escapeHtml(it.text)}</span>
-          </div>
-          ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
-          <button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>
-        </li>
-      `
-        )
-        .join("");
-    }
+    renderItemsList(eventListEl, emptyStateEl, getItemsForDate(key));
   }
 
   function refreshPanelIfOpen() {
     if (state.selectedDate) renderPanel(state.selectedDate);
+  }
+
+  function renderTodayPanel() {
+    const key = todayKey();
+    todayPanelDate.textContent = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+    renderItemsList(todayEventListEl, todayEmptyStateEl, getItemsForDate(key));
+  }
+
+  function setTodayPanelHidden(hidden) {
+    todayPanel.classList.toggle("collapsed", hidden);
+    toggleTodayPanelBtn.setAttribute("aria-pressed", String(!hidden));
+    localStorage.setItem(TODAY_PANEL_KEY, hidden ? "1" : "0");
   }
 
   function deleteSingleEvent(key, id) {
@@ -512,6 +533,7 @@
     closeAddModal();
     renderMonth();
     refreshPanelIfOpen();
+    renderTodayPanel();
   }
 
   // ---------- Event listeners ----------
@@ -553,7 +575,30 @@
     }
     renderPanel(state.selectedDate);
     renderMonth();
+    renderTodayPanel();
   });
+
+  todayEventListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".delete-btn");
+    if (!btn) return;
+    const { id, source } = btn.dataset;
+    if (source === "routine") {
+      const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
+      if (!ok) return;
+      deleteRoutine(id);
+    } else {
+      deleteSingleEvent(todayKey(), id);
+    }
+    renderTodayPanel();
+    renderMonth();
+    refreshPanelIfOpen();
+  });
+
+  toggleTodayPanelBtn.addEventListener("click", () => {
+    setTodayPanelHidden(!todayPanel.classList.contains("collapsed"));
+  });
+
+  closeTodayPanelBtn.addEventListener("click", () => setTodayPanelHidden(true));
 
   typePicker.addEventListener("click", (e) => {
     const btn = e.target.closest(".type-btn");
@@ -628,6 +673,8 @@
   });
 
   // ---------- Init ----------
+  setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
   renderWeekdaysRow();
   renderMonth();
+  renderTodayPanel();
 })();

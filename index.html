@@ -10,34 +10,58 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">&#10022;</span> Calendar</div>
+      <div class="topbar-left">
+        <div class="brand"><span class="brand-mark">&#10022;</span> Calendar</div>
+        <button class="icon-btn" id="toggleTodayPanelBtn" aria-label="Toggle today panel" aria-pressed="true" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
       <button class="add-event-btn" id="addEventBtn" type="button">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Add Event
       </button>
     </header>
 
-    <main class="calendar-wrap">
-      <section class="calendar-card" aria-label="Calendar">
-        <div class="cal-header">
-          <button class="nav-btn" id="prevBtn" aria-label="Previous month" type="button">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-
-          <div class="month-title-wrap">
-            <h1 id="monthTitle">Month Year</h1>
-            <button class="today-pill" id="todayBtn" type="button">Today</button>
+    <div class="body-row">
+      <aside class="today-panel" id="todayPanel">
+        <div class="today-panel-inner">
+          <div class="today-panel-header">
+            <div>
+              <div class="day-panel-weekday">Today</div>
+              <div class="day-panel-date" id="todayPanelDate">July 27, 2026</div>
+            </div>
+            <button class="icon-btn" id="closeTodayPanelBtn" aria-label="Hide today panel" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
           </div>
 
-          <button class="nav-btn" id="nextBtn" aria-label="Next month" type="button">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          <ul class="event-list" id="todayEventList"></ul>
+          <p class="empty-state" id="todayEmptyState">Nothing scheduled today.</p>
         </div>
+      </aside>
 
-        <div class="weekdays" id="weekdaysRow"></div>
-        <div class="days-grid" id="daysGrid"></div>
-      </section>
-    </main>
+      <main class="calendar-wrap">
+        <section class="calendar-card" aria-label="Calendar">
+          <div class="cal-header">
+            <button class="nav-btn" id="prevBtn" aria-label="Previous month" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+
+            <div class="month-title-wrap">
+              <h1 id="monthTitle">Month Year</h1>
+              <button class="today-pill" id="todayBtn" type="button">Today</button>
+            </div>
+
+            <button class="nav-btn" id="nextBtn" aria-label="Next month" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <div class="weekdays" id="weekdaysRow"></div>
+          <div class="days-grid" id="daysGrid"></div>
+        </section>
+      </main>
+    </div>
 
     <!-- Day detail panel -->
     <div class="panel-backdrop" id="panelBackdrop"></div>
