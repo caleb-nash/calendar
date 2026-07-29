@@ -70,6 +70,7 @@
   const formTime = document.getElementById("formTime");
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
   const goalFreqMode = document.getElementById("goalFreqMode");
+  const goalFreqHint = document.getElementById("goalFreqHint");
   const singleTextWrap = document.getElementById("singleTextWrap");
   const singleTextLabel = document.getElementById("singleTextLabel");
   const formText = document.getElementById("formText");
@@ -89,6 +90,13 @@
     daily: "Repeats every single day starting from the date above.",
     weekly: `Repeats every week on the same weekday as the date above.`,
     cycle: "Add the sequence in order (e.g. Push, Pull, Legs). It repeats forever, one step per day, starting from the date above.",
+  };
+
+  const GOAL_FREQ_HINTS = {
+    daily: "Stays through the rest of the day, starting from the date above.",
+    weekly: "Stays through the rest of that week (until Saturday), starting from the date above.",
+    monthly: "Stays through the rest of that month, starting from the date above.",
+    yearly: "Stays through the rest of that year, starting from the date above.",
   };
 
   // ---------- Storage ----------
@@ -142,10 +150,32 @@
   }
 
   // ---------- Routine occurrence math ----------
+  function getGoalOccurrence(routine, target, start) {
+    let endDate;
+    if (routine.repeat === "daily") {
+      endDate = start;
+    } else if (routine.repeat === "weekly") {
+      endDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (6 - start.getDay()));
+    } else if (routine.repeat === "monthly") {
+      endDate = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    } else if (routine.repeat === "yearly") {
+      endDate = new Date(start.getFullYear(), 11, 31);
+    } else {
+      return null;
+    }
+    if (target > endDate) return null;
+    return { text: routine.text, time: routine.time };
+  }
+
   function getRoutineOccurrence(routine, key) {
     const target = parseDateKey(key);
     const start = parseDateKey(routine.startDate);
     if (target < start) return null;
+
+    if (routine.type === "goal") {
+      return getGoalOccurrence(routine, target, start);
+    }
+
     const dayDiff = Math.round((target - start) / 86400000);
 
     if (routine.repeat === "daily") {
@@ -415,6 +445,7 @@
     state.selectedType = null;
     state.selectedRepeat = null;
     state.goalFrequency = "daily";
+    goalFreqHint.textContent = GOAL_FREQ_HINTS.daily;
     state.eventRepeatDays = new Set();
     state.eventForever = false;
     state.eventRepeatWeeks = null;
@@ -805,6 +836,7 @@
     goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     state.goalFrequency = btn.dataset.freq;
+    goalFreqHint.textContent = GOAL_FREQ_HINTS[state.goalFrequency];
   });
 
   eventWeekdayPicker.addEventListener("click", (e) => {
