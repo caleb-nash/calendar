@@ -27,12 +27,17 @@
         <div class="today-panel-inner">
           <div class="today-panel-header">
             <div>
-              <div class="day-panel-weekday">Today</div>
+              <div class="day-panel-weekday" id="todayPanelLabel">Today</div>
               <div class="day-panel-date" id="todayPanelDate">July 27, 2026</div>
             </div>
-            <button class="icon-btn" id="closeTodayPanelBtn" aria-label="Hide today panel" type="button">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            </button>
+            <div class="day-panel-actions">
+              <button class="icon-btn" id="todayPanelAddBtn" aria-label="Add event on this day" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+              <button class="icon-btn" id="closeTodayPanelBtn" aria-label="Hide panel" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
           </div>
 
           <ul class="event-list" id="todayEventList"></ul>
@@ -62,30 +67,6 @@
         </section>
       </main>
     </div>
-
-    <!-- Day detail panel -->
-    <div class="panel-backdrop" id="panelBackdrop"></div>
-    <aside class="day-panel" id="dayPanel" aria-hidden="true">
-      <div class="day-panel-inner">
-        <div class="day-panel-header">
-          <div>
-            <div class="day-panel-weekday" id="panelWeekday">Monday</div>
-            <div class="day-panel-date" id="panelDate">July 27, 2026</div>
-          </div>
-          <div class="day-panel-actions">
-            <button class="icon-btn" id="panelAddBtn" aria-label="Add event on this day" type="button">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            </button>
-            <button class="icon-btn" id="closePanelBtn" aria-label="Close" type="button">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <ul class="event-list" id="eventList"></ul>
-        <p class="empty-state" id="emptyState">Nothing scheduled. Tap + to add something.</p>
-      </div>
-    </aside>
 
     <!-- Add event modal -->
     <div class="modal-backdrop" id="modalBackdrop"></div>
