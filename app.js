@@ -18,7 +18,8 @@
     selectedType: null,
     selectedRepeat: null,
     goalFrequency: "daily",
-    goalForever: false,
+    eventRepeatDays: new Set(),
+    eventForever: false,
   };
 
   // ---------- Elements ----------
@@ -56,11 +57,13 @@
   const repeatModeGroup = document.getElementById("repeatModeGroup");
   const repeatModeEl = document.getElementById("repeatMode");
   const repeatHint = document.getElementById("repeatHint");
+  const eventRepeatGroup = document.getElementById("eventRepeatGroup");
+  const eventWeekdayPicker = document.getElementById("eventWeekdayPicker");
+  const eventForeverBtn = document.getElementById("eventForeverBtn");
   const timeFieldWrap = document.getElementById("timeFieldWrap");
   const formTime = document.getElementById("formTime");
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
   const goalFreqMode = document.getElementById("goalFreqMode");
-  const foreverBtn = document.getElementById("foreverBtn");
   const singleTextWrap = document.getElementById("singleTextWrap");
   const singleTextLabel = document.getElementById("singleTextLabel");
   const formText = document.getElementById("formText");
@@ -151,6 +154,10 @@
     }
     if (routine.repeat === "yearly") {
       if (target.getDate() !== start.getDate() || target.getMonth() !== start.getMonth()) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "weekdays") {
+      if (!routine.days.includes(target.getDay())) return null;
       return { text: routine.text, time: routine.time };
     }
     return null;
@@ -345,6 +352,8 @@
     state.selectedType = null;
     state.selectedRepeat = null;
     state.goalFrequency = "daily";
+    state.eventRepeatDays = new Set();
+    state.eventForever = false;
     formDate.value = presetKey || state.selectedDate || todayKey();
     formTime.value = "";
     formText.value = "";
@@ -353,16 +362,17 @@
     addCycleRow();
     addCycleRow();
 
-    state.goalForever = false;
     goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
       b.classList.toggle("active", b.dataset.freq === "daily");
     });
-    foreverBtn.classList.remove("active");
+    eventWeekdayPicker.querySelectorAll(".weekday-btn").forEach((b) => b.classList.remove("active"));
+    eventForeverBtn.classList.remove("active");
 
     typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.remove("active"));
     repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
     repeatModeGroup.hidden = true;
     repeatHint.textContent = "";
+    eventRepeatGroup.hidden = true;
     timeFieldWrap.hidden = true;
     goalRepeatGroup.hidden = true;
     singleTextWrap.hidden = true;
@@ -393,6 +403,7 @@
     const type = state.selectedType;
     repeatModeGroup.hidden = type !== "routine";
     goalRepeatGroup.hidden = type !== "goal";
+    eventRepeatGroup.hidden = type !== "event";
 
     if (type === "routine") {
       const repeat = state.selectedRepeat;
@@ -471,34 +482,36 @@
     if (type === "event") {
       const text = formText.value.trim();
       if (!text) return;
-      if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
-      state.data.singleEvents[key].push({
-        id: uid(),
-        type,
-        time: formTime.value || null,
-        text,
-      });
-    } else if (type === "goal") {
-      const text = formText.value.trim();
-      if (!text) return;
-      if (state.goalForever) {
+      if (state.eventForever && state.eventRepeatDays.size > 0) {
         state.data.routines.push({
           id: uid(),
-          type: "goal",
-          repeat: state.goalFrequency,
+          type: "event",
+          repeat: "weekdays",
+          days: Array.from(state.eventRepeatDays).sort(),
           startDate: key,
-          time: null,
+          time: formTime.value || null,
           text,
         });
       } else {
         if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
         state.data.singleEvents[key].push({
           id: uid(),
-          type: "goal",
-          time: null,
+          type,
+          time: formTime.value || null,
           text,
         });
       }
+    } else if (type === "goal") {
+      const text = formText.value.trim();
+      if (!text) return;
+      state.data.routines.push({
+        id: uid(),
+        type: "goal",
+        repeat: state.goalFrequency,
+        startDate: key,
+        time: null,
+        text,
+      });
     } else if (type === "routine") {
       const repeat = state.selectedRepeat;
       if (!repeat) return;
@@ -614,16 +627,33 @@
   goalFreqMode.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
     if (!btn) return;
-
-    if (btn === foreverBtn) {
-      state.goalForever = !state.goalForever;
-      foreverBtn.classList.toggle("active", state.goalForever);
-      return;
-    }
-
     goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     state.goalFrequency = btn.dataset.freq;
+  });
+
+  eventWeekdayPicker.addEventListener("click", (e) => {
+    const btn = e.target.closest(".weekday-btn");
+    if (!btn) return;
+    const day = Number(btn.dataset.day);
+    if (state.eventRepeatDays.has(day)) {
+      state.eventRepeatDays.delete(day);
+      btn.classList.remove("active");
+    } else {
+      state.eventRepeatDays.add(day);
+      btn.classList.add("active");
+    }
+  });
+
+  eventForeverBtn.addEventListener("click", () => {
+    state.eventForever = !state.eventForever;
+    eventForeverBtn.classList.toggle("active", state.eventForever);
+    if (state.eventForever && state.eventRepeatDays.size === 0 && formDate.value) {
+      const day = parseDateKey(formDate.value).getDay();
+      state.eventRepeatDays.add(day);
+      const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${day}"]`);
+      if (btn) btn.classList.add("active");
+    }
   });
 
   repeatModeEl.addEventListener("click", (e) => {

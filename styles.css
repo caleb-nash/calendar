@@ -661,9 +661,54 @@ body {
   line-height: 1.4;
 }
 
+.weekday-picker {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.weekday-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.weekday-btn.active {
+  border-color: var(--c-event);
+  color: var(--accent-strong);
+  background: var(--c-event-soft);
+}
+
+.event-forever-btn {
+  width: 100%;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.event-forever-btn.active {
+  border-style: solid;
+  border-color: var(--c-event);
+  color: var(--accent-strong);
+  background: var(--c-event-soft);
+}
+
 .segmented.goal-freq {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 8px;
 }
 
@@ -677,12 +722,6 @@ body {
   border-color: var(--c-goal);
   color: var(--c-goal);
   background: var(--c-goal-soft);
-}
-
-.goal-freq .seg-btn.forever-toggle.active {
-  border-color: var(--accent);
-  color: var(--accent-strong);
-  background: var(--accent-soft);
 }
 
 

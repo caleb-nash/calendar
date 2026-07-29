@@ -123,6 +123,20 @@
             <p class="hint" id="repeatHint"></p>
           </div>
 
+          <div class="field-group" id="eventRepeatGroup" hidden>
+            <span class="field-label">Repeat on</span>
+            <div class="weekday-picker" id="eventWeekdayPicker">
+              <button type="button" class="weekday-btn" data-day="0">Su</button>
+              <button type="button" class="weekday-btn" data-day="1">Mo</button>
+              <button type="button" class="weekday-btn" data-day="2">Tu</button>
+              <button type="button" class="weekday-btn" data-day="3">We</button>
+              <button type="button" class="weekday-btn" data-day="4">Th</button>
+              <button type="button" class="weekday-btn" data-day="5">Fr</button>
+              <button type="button" class="weekday-btn" data-day="6">Sa</button>
+            </div>
+            <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
+          </div>
+
           <div class="field-group" id="timeFieldWrap" hidden>
             <label class="field-label" for="formTime">Time (optional)</label>
             <input type="time" id="formTime" />
@@ -135,9 +149,8 @@
               <button type="button" class="seg-btn" data-freq="weekly">Weekly</button>
               <button type="button" class="seg-btn" data-freq="monthly">Monthly</button>
               <button type="button" class="seg-btn" data-freq="yearly">Yearly</button>
-              <button type="button" class="seg-btn forever-toggle" id="foreverBtn">Forever</button>
             </div>
-            <p class="hint">Tap Forever to keep this goal recurring at the chosen frequency. Leave it off for a one-time goal.</p>
+            <p class="hint">This goal repeats at the chosen frequency, starting from the date above.</p>
           </div>
 
           <div class="field-group" id="singleTextWrap" hidden>
