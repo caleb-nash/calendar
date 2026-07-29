@@ -24,6 +24,8 @@
     multiDayText: "",
     multiDayTime: null,
     multiDaySelectedDates: new Set(),
+    miniCalYear: today.getFullYear(),
+    miniCalMonth: today.getMonth(),
   };
 
   // ---------- Elements ----------
@@ -50,6 +52,12 @@
   const closeModalBtn = document.getElementById("closeModalBtn");
   const addForm = document.getElementById("addForm");
   const formDate = document.getElementById("formDate");
+  const miniCalToggle = document.getElementById("miniCalToggle");
+  const miniCalendar = document.getElementById("miniCalendar");
+  const miniCalTitle = document.getElementById("miniCalTitle");
+  const miniCalGrid = document.getElementById("miniCalGrid");
+  const miniCalPrev = document.getElementById("miniCalPrev");
+  const miniCalNext = document.getElementById("miniCalNext");
   const typePicker = document.getElementById("typePicker");
   const repeatModeGroup = document.getElementById("repeatModeGroup");
   const repeatModeEl = document.getElementById("repeatMode");
@@ -334,6 +342,71 @@
     saveData();
   }
 
+  // ---------- Mini calendar (date picker) ----------
+  function renderMiniCalendar() {
+    const y = state.miniCalYear;
+    const m = state.miniCalMonth;
+    miniCalTitle.textContent = `${MONTHS[m]} ${y}`;
+
+    const firstOfMonth = new Date(y, m, 1);
+    const startOffset = firstOfMonth.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const daysInPrevMonth = new Date(y, m, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const cells = [];
+    for (let i = 0; i < totalCells; i++) {
+      const dayOffset = i - startOffset + 1;
+      let year = y;
+      let month = m;
+      let day = dayOffset;
+      let otherMonth = false;
+
+      if (dayOffset < 1) {
+        month = m - 1;
+        year = month < 0 ? y - 1 : y;
+        month = (month + 12) % 12;
+        day = daysInPrevMonth + dayOffset;
+        otherMonth = true;
+      } else if (dayOffset > daysInMonth) {
+        day = dayOffset - daysInMonth;
+        month = m + 1;
+        year = month > 11 ? y + 1 : y;
+        month = month % 12;
+        otherMonth = true;
+      }
+
+      const key = dateKey(year, month, day);
+      const cellDate = new Date(year, month, day);
+      cellDate.setHours(0, 0, 0, 0);
+      const isToday = cellDate.getTime() === today.getTime();
+      const isSelected = formDate.value === key;
+
+      const classes = ["mini-cal-cell"];
+      if (otherMonth) classes.push("other-month");
+      if (isToday) classes.push("today");
+      if (isSelected) classes.push("selected");
+
+      cells.push(`<button type="button" class="${classes.join(" ")}" data-key="${key}">${day}</button>`);
+    }
+
+    miniCalGrid.innerHTML = cells.join("");
+  }
+
+  function openMiniCalendar() {
+    const base = formDate.value ? parseDateKey(formDate.value) : new Date(today);
+    state.miniCalYear = base.getFullYear();
+    state.miniCalMonth = base.getMonth();
+    renderMiniCalendar();
+    miniCalendar.classList.add("open");
+    miniCalToggle.classList.add("active");
+  }
+
+  function closeMiniCalendar() {
+    miniCalendar.classList.remove("open");
+    miniCalToggle.classList.remove("active");
+  }
+
   // ---------- Add-event modal ----------
   function resetAddForm(presetKey) {
     state.selectedType = null;
@@ -366,6 +439,7 @@
     cycleFieldWrap.hidden = true;
     saveBtn.disabled = true;
     multiDayBtn.disabled = true;
+    closeMiniCalendar();
   }
 
   function addCycleRow(value) {
@@ -623,6 +697,47 @@
   closeModalBtn.addEventListener("click", closeAddModal);
   modalBackdrop.addEventListener("click", closeAddModal);
 
+  miniCalToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (miniCalendar.classList.contains("open")) {
+      closeMiniCalendar();
+    } else {
+      openMiniCalendar();
+    }
+  });
+
+  miniCalPrev.addEventListener("click", () => {
+    state.miniCalMonth -= 1;
+    if (state.miniCalMonth < 0) {
+      state.miniCalMonth = 11;
+      state.miniCalYear -= 1;
+    }
+    renderMiniCalendar();
+  });
+
+  miniCalNext.addEventListener("click", () => {
+    state.miniCalMonth += 1;
+    if (state.miniCalMonth > 11) {
+      state.miniCalMonth = 0;
+      state.miniCalYear += 1;
+    }
+    renderMiniCalendar();
+  });
+
+  miniCalGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".mini-cal-cell");
+    if (!cell) return;
+    formDate.value = cell.dataset.key;
+    closeMiniCalendar();
+    updateSaveEnabled();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!miniCalendar.classList.contains("open")) return;
+    if (miniCalendar.contains(e.target) || e.target === miniCalToggle) return;
+    closeMiniCalendar();
+  });
+
   multiDayBtn.addEventListener("click", enterMultiDayPicking);
   multiDayCancelBtn.addEventListener("click", exitMultiDayPicking);
   multiDaySaveBtn.addEventListener("click", saveMultiDayEvents);
@@ -745,7 +860,9 @@
     const typing = tag === "INPUT" || tag === "TEXTAREA";
 
     if (e.key === "Escape") {
-      if (addModal.classList.contains("open")) {
+      if (miniCalendar.classList.contains("open")) {
+        closeMiniCalendar();
+      } else if (addModal.classList.contains("open")) {
         closeAddModal();
       } else if (state.multiDayPicking) {
         exitMultiDayPicking();

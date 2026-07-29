@@ -80,9 +80,26 @@
         </div>
 
         <form id="addForm" novalidate>
-          <div class="field-group">
+          <div class="field-group date-field-group">
             <label class="field-label" for="formDate">Date</label>
-            <input type="date" id="formDate" required />
+            <div class="date-input-row">
+              <input type="date" id="formDate" required />
+              <button type="button" class="mini-cal-toggle" id="miniCalToggle" aria-label="Pick date from calendar">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+
+            <div class="mini-calendar" id="miniCalendar">
+              <div class="mini-cal-header">
+                <button type="button" class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">&lsaquo;</button>
+                <span id="miniCalTitle">Month Year</span>
+                <button type="button" class="mini-cal-nav" id="miniCalNext" aria-label="Next month">&rsaquo;</button>
+              </div>
+              <div class="mini-cal-weekdays">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              </div>
+              <div class="mini-cal-grid" id="miniCalGrid"></div>
+            </div>
           </div>
 
           <div class="field-group">
@@ -104,22 +121,6 @@
             <p class="hint" id="repeatHint"></p>
           </div>
 
-          <div class="field-group" id="eventRepeatGroup" hidden>
-            <span class="field-label">Repeat on</span>
-            <div class="weekday-picker" id="eventWeekdayPicker">
-              <button type="button" class="weekday-btn" data-day="0">Su</button>
-              <button type="button" class="weekday-btn" data-day="1">Mo</button>
-              <button type="button" class="weekday-btn" data-day="2">Tu</button>
-              <button type="button" class="weekday-btn" data-day="3">We</button>
-              <button type="button" class="weekday-btn" data-day="4">Th</button>
-              <button type="button" class="weekday-btn" data-day="5">Fr</button>
-              <button type="button" class="weekday-btn" data-day="6">Sa</button>
-            </div>
-            <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
-            <p class="hint">Or skip the weekly pattern and pick exact dates:</p>
-            <button type="button" class="multi-day-btn" id="multiDayBtn">Pick Multiple Days</button>
-          </div>
-
           <div class="field-group" id="timeFieldWrap" hidden>
             <label class="field-label" for="formTime">Time (optional)</label>
             <input type="time" id="formTime" />
@@ -139,6 +140,22 @@
           <div class="field-group" id="singleTextWrap" hidden>
             <label class="field-label" for="formText" id="singleTextLabel">Description</label>
             <input type="text" id="formText" maxlength="120" placeholder="What's this for?" autocomplete="off" />
+          </div>
+
+          <div class="field-group" id="eventRepeatGroup" hidden>
+            <span class="field-label">Repeat on</span>
+            <div class="weekday-picker" id="eventWeekdayPicker">
+              <button type="button" class="weekday-btn" data-day="0">Su</button>
+              <button type="button" class="weekday-btn" data-day="1">Mo</button>
+              <button type="button" class="weekday-btn" data-day="2">Tu</button>
+              <button type="button" class="weekday-btn" data-day="3">We</button>
+              <button type="button" class="weekday-btn" data-day="4">Th</button>
+              <button type="button" class="weekday-btn" data-day="5">Fr</button>
+              <button type="button" class="weekday-btn" data-day="6">Sa</button>
+            </div>
+            <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
+            <p class="hint">Or skip the weekly pattern and pick exact dates:</p>
+            <button type="button" class="multi-day-btn" id="multiDayBtn">Pick Multiple Days</button>
           </div>
 
           <div class="field-group" id="cycleFieldWrap" hidden>
