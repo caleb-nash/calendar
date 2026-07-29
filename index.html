@@ -153,9 +153,17 @@
               <button type="button" class="weekday-btn" data-day="5">Fr</button>
               <button type="button" class="weekday-btn" data-day="6">Sa</button>
             </div>
-            <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
-            <p class="hint">Or skip the weekly pattern and pick exact dates:</p>
-            <button type="button" class="multi-day-btn" id="multiDayBtn">Pick Multiple Days</button>
+
+            <div class="weeks-row">
+              <span>Repeat for</span>
+              <input type="number" id="eventWeeksInput" min="1" max="208" placeholder="4" />
+              <span>weeks</span>
+            </div>
+
+            <div class="event-repeat-actions">
+              <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
+              <button type="button" class="multi-day-btn" id="multiDayBtn">Pick Multiple Days</button>
+            </div>
           </div>
 
           <div class="field-group" id="cycleFieldWrap" hidden>
@@ -171,6 +179,7 @@
 
     <!-- Multi-day picking confirm bar -->
     <div class="multiday-bar" id="multiDayBar">
+      <input type="text" id="multiDayTextInput" class="multiday-text-input" maxlength="120" placeholder="Description" autocomplete="off" />
       <span id="multiDayCount">0 days selected</span>
       <div class="multiday-bar-actions">
         <button type="button" class="multiday-cancel-btn" id="multiDayCancelBtn">Cancel</button>

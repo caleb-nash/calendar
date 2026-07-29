@@ -20,8 +20,8 @@
     goalFrequency: "daily",
     eventRepeatDays: new Set(),
     eventForever: false,
+    eventRepeatWeeks: null,
     multiDayPicking: false,
-    multiDayText: "",
     multiDayTime: null,
     multiDaySelectedDates: new Set(),
     miniCalYear: today.getFullYear(),
@@ -65,6 +65,7 @@
   const eventRepeatGroup = document.getElementById("eventRepeatGroup");
   const eventWeekdayPicker = document.getElementById("eventWeekdayPicker");
   const eventForeverBtn = document.getElementById("eventForeverBtn");
+  const eventWeeksInput = document.getElementById("eventWeeksInput");
   const timeFieldWrap = document.getElementById("timeFieldWrap");
   const formTime = document.getElementById("formTime");
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
@@ -79,6 +80,7 @@
 
   const multiDayBtn = document.getElementById("multiDayBtn");
   const multiDayBar = document.getElementById("multiDayBar");
+  const multiDayTextInput = document.getElementById("multiDayTextInput");
   const multiDayCount = document.getElementById("multiDayCount");
   const multiDayCancelBtn = document.getElementById("multiDayCancelBtn");
   const multiDaySaveBtn = document.getElementById("multiDaySaveBtn");
@@ -169,6 +171,7 @@
     }
     if (routine.repeat === "weekdays") {
       if (!routine.days.includes(target.getDay())) return null;
+      if (routine.weeks && dayDiff >= routine.weeks * 7) return null;
       return { text: routine.text, time: routine.time };
     }
     return null;
@@ -414,9 +417,11 @@
     state.goalFrequency = "daily";
     state.eventRepeatDays = new Set();
     state.eventForever = false;
+    state.eventRepeatWeeks = null;
     formDate.value = presetKey || currentPanelKey();
     formTime.value = "";
     formText.value = "";
+    eventWeeksInput.value = "";
     cycleItemsEl.innerHTML = "";
     addCycleRow();
     addCycleRow();
@@ -466,6 +471,7 @@
     repeatModeGroup.hidden = type !== "routine";
     goalRepeatGroup.hidden = type !== "goal";
     eventRepeatGroup.hidden = type !== "event";
+    multiDayBtn.disabled = type !== "event";
 
     if (type === "routine") {
       const repeat = state.selectedRepeat;
@@ -498,7 +504,6 @@
 
   function updateSaveEnabled() {
     const type = state.selectedType;
-    multiDayBtn.disabled = type !== "event" || formText.value.trim().length === 0;
 
     if (!type || !formDate.value) {
       saveBtn.disabled = true;
@@ -541,23 +546,19 @@
   function updateMultiDayBar() {
     const n = state.multiDaySelectedDates.size;
     multiDayCount.textContent = `${n} day${n === 1 ? "" : "s"} selected`;
-    multiDaySaveBtn.disabled = n === 0;
+    multiDaySaveBtn.disabled = n === 0 || multiDayTextInput.value.trim().length === 0;
   }
 
   function enterMultiDayPicking() {
-    const text = formText.value.trim();
-    if (!text) {
-      formText.focus();
-      return;
-    }
-    state.multiDayText = text;
     state.multiDayTime = formTime.value || null;
     state.multiDaySelectedDates = new Set();
     state.multiDayPicking = true;
+    multiDayTextInput.value = formText.value.trim();
     closeAddModal();
     updateMultiDayBar();
     multiDayBar.classList.add("visible");
     renderMonth();
+    multiDayTextInput.focus();
   }
 
   function exitMultiDayPicking() {
@@ -567,13 +568,15 @@
   }
 
   function saveMultiDayEvents() {
+    const text = multiDayTextInput.value.trim();
+    if (!text) return;
     state.multiDaySelectedDates.forEach((key) => {
       if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
       state.data.singleEvents[key].push({
         id: uid(),
         type: "event",
         time: state.multiDayTime,
-        text: state.multiDayText,
+        text,
       });
     });
     saveData();
@@ -591,7 +594,7 @@
     if (type === "event") {
       const text = formText.value.trim();
       if (!text) return;
-      if (state.eventForever && state.eventRepeatDays.size > 0) {
+      if ((state.eventForever || state.eventRepeatWeeks) && state.eventRepeatDays.size > 0) {
         state.data.routines.push({
           id: uid(),
           type: "event",
@@ -599,6 +602,7 @@
           days: Array.from(state.eventRepeatDays).sort(),
           startDate: key,
           time: formTime.value || null,
+          weeks: state.eventForever ? null : state.eventRepeatWeeks,
           text,
         });
       } else {
@@ -819,6 +823,10 @@
   eventForeverBtn.addEventListener("click", () => {
     state.eventForever = !state.eventForever;
     eventForeverBtn.classList.toggle("active", state.eventForever);
+    if (state.eventForever) {
+      state.eventRepeatWeeks = null;
+      eventWeeksInput.value = "";
+    }
     if (state.eventForever && state.eventRepeatDays.size === 0 && formDate.value) {
       const day = parseDateKey(formDate.value).getDay();
       state.eventRepeatDays.add(day);
@@ -826,6 +834,25 @@
       if (btn) btn.classList.add("active");
     }
   });
+
+  eventWeeksInput.addEventListener("input", () => {
+    const n = parseInt(eventWeeksInput.value, 10);
+    if (n > 0) {
+      state.eventRepeatWeeks = n;
+      state.eventForever = false;
+      eventForeverBtn.classList.remove("active");
+      if (state.eventRepeatDays.size === 0 && formDate.value) {
+        const day = parseDateKey(formDate.value).getDay();
+        state.eventRepeatDays.add(day);
+        const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${day}"]`);
+        if (btn) btn.classList.add("active");
+      }
+    } else {
+      state.eventRepeatWeeks = null;
+    }
+  });
+
+  multiDayTextInput.addEventListener("input", updateMultiDayBar);
 
   repeatModeEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
