@@ -36,6 +36,9 @@
   const nextBtn = document.getElementById("nextBtn");
   const todayBtn = document.getElementById("todayBtn");
   const addEventBtn = document.getElementById("addEventBtn");
+  const exportDataBtn = document.getElementById("exportDataBtn");
+  const importDataBtn = document.getElementById("importDataBtn");
+  const importFileInput = document.getElementById("importFileInput");
 
   const todayPanel = document.getElementById("todayPanel");
   const toggleTodayPanelBtn = document.getElementById("toggleTodayPanelBtn");
@@ -115,6 +118,45 @@
 
   function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `calendar-backup-${todayKey()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(reader.result);
+      } catch (e) {
+        window.alert("That file isn't valid JSON.");
+        return;
+      }
+      if (!parsed || typeof parsed !== "object" || !parsed.singleEvents || !Array.isArray(parsed.routines)) {
+        window.alert("That doesn't look like a calendar backup file.");
+        return;
+      }
+      state.data = {
+        singleEvents: parsed.singleEvents,
+        routines: parsed.routines,
+      };
+      saveData();
+      state.selectedDate = null;
+      renderMonth();
+      renderTodayPanel();
+      window.alert("Calendar restored from backup.");
+    };
+    reader.readAsText(file);
   }
 
   function uid() {
@@ -729,6 +771,18 @@
     if (state.multiDayPicking) return;
     openAddModal(currentPanelKey());
   });
+
+  exportDataBtn.addEventListener("click", exportData);
+  importDataBtn.addEventListener("click", () => importFileInput.click());
+  importFileInput.addEventListener("change", () => {
+    const file = importFileInput.files[0];
+    importFileInput.value = "";
+    if (!file) return;
+    const ok = window.confirm("This replaces everything currently on your calendar with the contents of this backup file. Continue?");
+    if (!ok) return;
+    importData(file);
+  });
+
   closeModalBtn.addEventListener("click", closeAddModal);
   modalBackdrop.addEventListener("click", closeAddModal);
 
