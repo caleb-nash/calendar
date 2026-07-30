@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TouchGrass — Level Up Offline</title>
+<meta name="description" content="Turn less screen time into your next level up. Set goals, build streaks, unlock badges.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="bg-glow bg-glow--1"></div>
+<div class="bg-glow bg-glow--2"></div>
+
+<header class="nav">
+  <div class="nav__brand">
+    <span class="nav__logo">🌱</span>
+    <span class="nav__name">TouchGrass</span>
+  </div>
+  <div class="nav__streak" id="navStreak">
+    <span class="flame">🔥</span>
+    <span><span id="navStreakCount">0</span>-day streak</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__text">
+      <p class="eyebrow">A screen-time game you actually want to play</p>
+      <h1>Less scrolling.<br><span class="grad-text">More leveling up.</span></h1>
+      <p class="hero__sub">Set a daily goal, log your screen time, and watch your character grow from a tiny seed into a legendary tree. Every offline hour counts.</p>
+      <div class="hero__cta">
+        <button class="btn btn--primary" id="btnLogTime">📱 Log Today's Screen Time</button>
+        <button class="btn btn--ghost" id="btnSetGoal">🎯 Set Goal</button>
+      </div>
+    </div>
+
+    <div class="hero__avatar-card">
+      <div class="avatar-card__level">LV <span id="levelNum">1</span></div>
+      <div class="avatar-stage" id="avatarStage">🌰</div>
+      <div class="avatar-card__title" id="avatarTitle">Tiny Seed</div>
+      <div class="xp-bar">
+        <div class="xp-bar__fill" id="xpFill" style="width:0%"></div>
+      </div>
+      <div class="xp-bar__label"><span id="xpNum">0</span> / <span id="xpNeeded">100</span> XP</div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-card__icon">📊</div>
+      <div class="stat-card__value" id="statToday">–</div>
+      <div class="stat-card__label">Last Logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__icon">📈</div>
+      <div class="stat-card__value" id="statAvg">–</div>
+      <div class="stat-card__label">7-Day Average</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__icon">🔥</div>
+      <div class="stat-card__value" id="statStreak">0</div>
+      <div class="stat-card__label">Current Streak</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__icon">🏆</div>
+      <div class="stat-card__value" id="statBest">0</div>
+      <div class="stat-card__label">Best Streak</div>
+    </div>
+  </section>
+
+  <!-- QUICK ACTIONS -->
+  <section class="actions">
+    <h2 class="section-title">Your Quest Board</h2>
+    <div class="action-grid">
+      <button class="action-btn" id="btnLogTime2">
+        <span class="action-btn__icon">📱</span>
+        <span class="action-btn__label">Log Screen Time</span>
+        <span class="action-btn__sub">Track today &amp; earn XP</span>
+      </button>
+      <button class="action-btn" id="btnSetGoal2">
+        <span class="action-btn__icon">🎯</span>
+        <span class="action-btn__label">Set Goal</span>
+        <span class="action-btn__sub" id="goalSub">Choose your daily limit</span>
+      </button>
+      <button class="action-btn" id="btnAchievements">
+        <span class="action-btn__icon">🏅</span>
+        <span class="action-btn__label">Achievements</span>
+        <span class="action-btn__sub" id="badgeSub">0 / 6 unlocked</span>
+      </button>
+      <button class="action-btn" id="btnReset">
+        <span class="action-btn__icon">🔄</span>
+        <span class="action-btn__label">Reset Progress</span>
+        <span class="action-btn__sub">Start a fresh save</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- QUEST MAP -->
+  <section class="questmap">
+    <h2 class="section-title">Growth Path</h2>
+    <p class="section-sub">Every level is a new form. How far will you grow?</p>
+    <div class="path" id="questPath"></div>
+  </section>
+
+  <!-- BADGES -->
+  <section class="badges" id="badgesSection">
+    <h2 class="section-title">Badge Case</h2>
+    <div class="badge-grid" id="badgeGrid"></div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>Built for putting the phone down — one level at a time. 🌳</p>
+</footer>
+
+<!-- GOAL MODAL -->
+<div class="modal-backdrop" id="goalModal">
+  <div class="modal">
+    <h3>🎯 Set Your Daily Goal</h3>
+    <p class="modal__hint">How many hours of screen time do you want to aim for per day?</p>
+    <div class="slider-row">
+      <input type="range" id="goalSlider" min="0.5" max="8" step="0.5" value="3">
+      <span class="slider-value"><span id="goalSliderVal">3</span>h</span>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost" id="goalCancel">Cancel</button>
+      <button class="btn btn--primary" id="goalSave">Save Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="modal-backdrop" id="logModal">
+  <div class="modal">
+    <h3>📱 Log Today's Screen Time</h3>
+    <p class="modal__hint">Be honest — your streak only means something if it's real.</p>
+    <div class="slider-row">
+      <input type="range" id="logSlider" min="0" max="12" step="0.5" value="3">
+      <span class="slider-value"><span id="logSliderVal">3</span>h</span>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost" id="logCancel">Cancel</button>
+      <button class="btn btn--primary" id="logSave">Log It</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL UP TOAST -->
+<div class="toast" id="levelToast">
+  <div class="toast__emoji" id="toastEmoji">🌿</div>
+  <div class="toast__text">
+    <div class="toast__title">Level Up!</div>
+    <div class="toast__sub" id="toastSub">You grew into a Sapling</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
