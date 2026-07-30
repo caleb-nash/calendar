@@ -108,6 +108,30 @@ body {
   transform: scale(0.96);
 }
 
+.view-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.view-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.sidebar-mini-cal {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
 /* ---------- Layout ---------- */
 .body-row {
   flex: 1;
@@ -170,6 +194,10 @@ body {
   box-shadow: var(--shadow-lg);
   padding: clamp(20px, 2vw, 32px) clamp(20px, 2.4vw, 40px);
   min-height: 0;
+}
+
+.calendar-card[hidden] {
+  display: none;
 }
 
 /* ---------- Header ---------- */
@@ -542,6 +570,84 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Day view ---------- */
+.day-view-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.day-view-allday {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.day-view-allday:empty {
+  display: none;
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.day-view-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.day-hour-row {
+  display: flex;
+  min-height: 52px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.day-hour-row:first-child {
+  border-top: none;
+}
+
+.day-hour-label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 6px 12px 0 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-hour-content {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.event-item.compact {
+  padding: 6px 10px;
+  gap: 6px;
+  animation: none;
+}
+
+.event-item.compact .event-badge {
+  font-size: 9px;
+}
+
+.event-item.compact .event-text {
+  font-size: 12px;
+}
+
+.event-item.compact .event-time {
+  font-size: 11px;
 }
 
 /* ---------- Add event modal ---------- */

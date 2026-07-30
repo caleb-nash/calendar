@@ -26,6 +26,9 @@
     multiDaySelectedDates: new Set(),
     miniCalYear: today.getFullYear(),
     miniCalMonth: today.getMonth(),
+    viewMode: "day",
+    sidebarCalYear: today.getFullYear(),
+    sidebarCalMonth: today.getMonth(),
   };
 
   // ---------- Elements ----------
@@ -39,6 +42,15 @@
   const exportDataBtn = document.getElementById("exportDataBtn");
   const importDataBtn = document.getElementById("importDataBtn");
   const importFileInput = document.getElementById("importFileInput");
+  const viewToggleBtn = document.getElementById("viewToggleBtn");
+  const monthView = document.getElementById("monthView");
+  const dayView = document.getElementById("dayView");
+  const dayPrevBtn = document.getElementById("dayPrevBtn");
+  const dayNextBtn = document.getElementById("dayNextBtn");
+  const dayTodayBtn = document.getElementById("dayTodayBtn");
+  const dayViewTitle = document.getElementById("dayViewTitle");
+  const dayViewAllDay = document.getElementById("dayViewAllDay");
+  const dayViewTimeline = document.getElementById("dayViewTimeline");
 
   const todayPanel = document.getElementById("todayPanel");
   const toggleTodayPanelBtn = document.getElementById("toggleTodayPanelBtn");
@@ -48,6 +60,10 @@
   const todayPanelDate = document.getElementById("todayPanelDate");
   const todayEventListEl = document.getElementById("todayEventList");
   const todayEmptyStateEl = document.getElementById("todayEmptyState");
+  const sidebarCalPrev = document.getElementById("sidebarCalPrev");
+  const sidebarCalNext = document.getElementById("sidebarCalNext");
+  const sidebarCalTitle = document.getElementById("sidebarCalTitle");
+  const sidebarCalGrid = document.getElementById("sidebarCalGrid");
   const TODAY_PANEL_KEY = "calendar_today_panel_hidden";
 
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -151,9 +167,7 @@
         routines: parsed.routines,
       };
       saveData();
-      state.selectedDate = null;
-      renderMonth();
-      renderTodayPanel();
+      resetToToday();
       window.alert("Calendar restored from backup.");
     };
     reader.readAsText(file);
@@ -346,14 +360,6 @@
     renderMonth();
   }
 
-  function goToToday() {
-    state.viewYear = today.getFullYear();
-    state.viewMonth = today.getMonth();
-    state.selectedDate = null;
-    renderMonth();
-    renderTodayPanel();
-  }
-
   function todayKey() {
     return dateKey(today.getFullYear(), today.getMonth(), today.getDate());
   }
@@ -362,7 +368,47 @@
     return state.selectedDate || todayKey();
   }
 
+  function selectDate(key) {
+    state.selectedDate = key;
+    const d = parseDateKey(key);
+    state.viewYear = d.getFullYear();
+    state.viewMonth = d.getMonth();
+    state.sidebarCalYear = d.getFullYear();
+    state.sidebarCalMonth = d.getMonth();
+    renderMonth();
+    renderTodayPanel();
+    renderSidebarCalendar();
+    renderDayView();
+  }
+
+  function resetToToday() {
+    state.selectedDate = null;
+    state.viewYear = today.getFullYear();
+    state.viewMonth = today.getMonth();
+    state.sidebarCalYear = today.getFullYear();
+    state.sidebarCalMonth = today.getMonth();
+    renderMonth();
+    renderTodayPanel();
+    renderSidebarCalendar();
+    renderDayView();
+  }
+
   // ---------- Info panel ----------
+  function itemInnerHtml(it) {
+    return `
+      <div class="event-main">
+        <span class="event-badge">${TYPE_LABELS[it.type]}</span>
+        <span class="event-text">${escapeHtml(it.text)}</span>
+      </div>
+      ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
+      ${
+        it.type === "goal"
+          ? `<button type="button" class="complete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+          : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
+      }
+    `;
+  }
+
   function renderItemsList(listEl, emptyEl, items) {
     if (items.length === 0) {
       listEl.innerHTML = "";
@@ -371,22 +417,7 @@
     }
     emptyEl.style.display = "none";
     listEl.innerHTML = items
-      .map(
-        (it) => `
-      <li class="event-item type-${it.type}" data-id="${it.id}" data-source="${it.source}">
-        <div class="event-main">
-          <span class="event-badge">${TYPE_LABELS[it.type]}</span>
-          <span class="event-text">${escapeHtml(it.text)}</span>
-        </div>
-        ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
-        ${
-          it.type === "goal"
-            ? `<button type="button" class="complete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
-            : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
-        }
-      </li>
-    `
-      )
+      .map((it) => `<li class="event-item type-${it.type}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it)}</li>`)
       .join("");
   }
 
@@ -397,6 +428,56 @@
     todayPanelLabel.textContent = key === todayKey() ? "Today" : WEEKDAYS_LONG[dt.getDay()];
     todayPanelDate.textContent = `${MONTHS[m - 1]} ${d}, ${y}`;
     renderItemsList(todayEventListEl, todayEmptyStateEl, getItemsForDate(key));
+  }
+
+  // ---------- Day view ----------
+  function formatHourLabel(hour) {
+    const period = hour >= 12 ? "PM" : "AM";
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${h12} ${period}`;
+  }
+
+  function dayItemHtml(it) {
+    return `<div class="event-item compact type-${it.type}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it)}</div>`;
+  }
+
+  function renderDayView() {
+    const key = currentPanelKey();
+    const [y, m, d] = key.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dayViewTitle.textContent = `${WEEKDAYS_LONG[dt.getDay()]}, ${MONTHS[m - 1]} ${d}`;
+
+    const items = getItemsForDate(key);
+    const allDayItems = items.filter((it) => !it.time);
+    const timedItems = items.filter((it) => it.time);
+
+    dayViewAllDay.innerHTML = allDayItems.map((it) => dayItemHtml(it)).join("");
+
+    const hourBuckets = Array.from({ length: 24 }, () => []);
+    timedItems.forEach((it) => {
+      const hour = parseInt(it.time.split(":")[0], 10);
+      hourBuckets[hour].push(it);
+    });
+
+    dayViewTimeline.innerHTML = hourBuckets
+      .map(
+        (bucketItems, hour) => `
+      <div class="day-hour-row">
+        <div class="day-hour-label">${formatHourLabel(hour)}</div>
+        <div class="day-hour-content">${bucketItems.map((it) => dayItemHtml(it)).join("")}</div>
+      </div>
+    `
+      )
+      .join("");
+  }
+
+  function setViewMode(mode) {
+    state.viewMode = mode;
+    monthView.hidden = mode !== "month";
+    dayView.hidden = mode !== "day";
+    viewToggleBtn.textContent = mode === "day" ? "Month view" : "Day view";
+    renderMonth();
+    renderDayView();
   }
 
   function setTodayPanelHidden(hidden) {
@@ -418,11 +499,7 @@
   }
 
   // ---------- Mini calendar (date picker) ----------
-  function renderMiniCalendar() {
-    const y = state.miniCalYear;
-    const m = state.miniCalMonth;
-    miniCalTitle.textContent = `${MONTHS[m]} ${y}`;
-
+  function buildMiniCalCells(y, m, selectedKey) {
     const firstOfMonth = new Date(y, m, 1);
     const startOffset = firstOfMonth.getDay();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
@@ -455,7 +532,7 @@
       const cellDate = new Date(year, month, day);
       cellDate.setHours(0, 0, 0, 0);
       const isToday = cellDate.getTime() === today.getTime();
-      const isSelected = formDate.value === key;
+      const isSelected = selectedKey === key;
 
       const classes = ["mini-cal-cell"];
       if (otherMonth) classes.push("other-month");
@@ -465,7 +542,17 @@
       cells.push(`<button type="button" class="${classes.join(" ")}" data-key="${key}">${day}</button>`);
     }
 
-    miniCalGrid.innerHTML = cells.join("");
+    return cells.join("");
+  }
+
+  function renderMiniCalendar() {
+    miniCalTitle.textContent = `${MONTHS[state.miniCalMonth]} ${state.miniCalYear}`;
+    miniCalGrid.innerHTML = buildMiniCalCells(state.miniCalYear, state.miniCalMonth, formDate.value);
+  }
+
+  function renderSidebarCalendar() {
+    sidebarCalTitle.textContent = `${MONTHS[state.sidebarCalMonth]} ${state.sidebarCalYear}`;
+    sidebarCalGrid.innerHTML = buildMiniCalCells(state.sidebarCalYear, state.sidebarCalMonth, currentPanelKey());
   }
 
   function openMiniCalendar() {
@@ -656,6 +743,7 @@
     exitMultiDayPicking();
     renderMonth();
     renderTodayPanel();
+    renderDayView();
   }
 
   function submitAddForm(e) {
@@ -732,12 +820,55 @@
     closeAddModal();
     renderMonth();
     renderTodayPanel();
+    renderDayView();
   }
 
   // ---------- Event listeners ----------
   prevBtn.addEventListener("click", () => changeMonth(-1));
   nextBtn.addEventListener("click", () => changeMonth(1));
-  todayBtn.addEventListener("click", goToToday);
+  todayBtn.addEventListener("click", resetToToday);
+  dayTodayBtn.addEventListener("click", resetToToday);
+
+  dayPrevBtn.addEventListener("click", () => {
+    const d = parseDateKey(currentPanelKey());
+    d.setDate(d.getDate() - 1);
+    selectDate(dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+  });
+
+  dayNextBtn.addEventListener("click", () => {
+    const d = parseDateKey(currentPanelKey());
+    d.setDate(d.getDate() + 1);
+    selectDate(dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+  });
+
+  viewToggleBtn.addEventListener("click", () => {
+    setViewMode(state.viewMode === "day" ? "month" : "day");
+  });
+
+  sidebarCalPrev.addEventListener("click", () => {
+    state.sidebarCalMonth -= 1;
+    if (state.sidebarCalMonth < 0) {
+      state.sidebarCalMonth = 11;
+      state.sidebarCalYear -= 1;
+    }
+    renderSidebarCalendar();
+  });
+
+  sidebarCalNext.addEventListener("click", () => {
+    state.sidebarCalMonth += 1;
+    if (state.sidebarCalMonth > 11) {
+      state.sidebarCalMonth = 0;
+      state.sidebarCalYear += 1;
+    }
+    renderSidebarCalendar();
+  });
+
+  sidebarCalGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".mini-cal-cell");
+    if (!cell) return;
+    selectDate(cell.dataset.key);
+    if (todayPanel.classList.contains("collapsed")) setTodayPanelHidden(false);
+  });
 
   daysGridEl.addEventListener("click", (e) => {
     const cell = e.target.closest(".day-cell");
@@ -757,9 +888,7 @@
       return;
     }
 
-    state.selectedDate = key;
-    renderMonth();
-    renderTodayPanel();
+    selectDate(key);
     if (todayPanel.classList.contains("collapsed")) setTodayPanelHidden(false);
   });
 
@@ -831,15 +960,15 @@
   multiDayCancelBtn.addEventListener("click", exitMultiDayPicking);
   multiDaySaveBtn.addEventListener("click", saveMultiDayEvents);
 
-  todayEventListEl.addEventListener("click", (e) => {
+  function handleItemListClick(e) {
     const completeBtn = e.target.closest(".complete-btn");
     if (completeBtn) {
       if (completeBtn.classList.contains("checked")) return;
       const { id, source } = completeBtn.dataset;
       completeBtn.classList.add("checked");
-      const li = completeBtn.closest(".event-item");
+      const item = completeBtn.closest(".event-item");
       setTimeout(() => {
-        li.classList.add("removing");
+        item.classList.add("removing");
         setTimeout(() => {
           if (source === "routine") {
             deleteRoutine(id);
@@ -848,6 +977,7 @@
           }
           renderTodayPanel();
           renderMonth();
+          renderDayView();
         }, 250);
       }, 450);
       return;
@@ -865,7 +995,12 @@
     }
     renderTodayPanel();
     renderMonth();
-  });
+    renderDayView();
+  }
+
+  todayEventListEl.addEventListener("click", handleItemListClick);
+  dayViewAllDay.addEventListener("click", handleItemListClick);
+  dayViewTimeline.addEventListener("click", handleItemListClick);
 
   toggleTodayPanelBtn.addEventListener("click", () => {
     setTodayPanelHidden(!todayPanel.classList.contains("collapsed"));
@@ -991,6 +1126,7 @@
   // ---------- Init ----------
   setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
   renderWeekdaysRow();
-  renderMonth();
   renderTodayPanel();
+  renderSidebarCalendar();
+  setViewMode("day");
 })();
