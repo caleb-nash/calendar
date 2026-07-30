@@ -332,15 +332,17 @@
       if (isSelected) classes.push("selected");
       if (state.multiDayPicking && state.multiDaySelectedDates.has(key)) classes.push("multi-picked");
 
-      const dots = dayItems
-        .slice(0, 3)
-        .map((it) => `<span class="dot-${it.type}"></span>`)
-        .join("");
+      const maxChips = 3;
+      const visibleItems = dayItems.slice(0, maxChips);
+      const extraCount = dayItems.length - visibleItems.length;
+      const chipsHtml =
+        visibleItems.map((it) => `<span class="day-chip type-${it.type}">${escapeHtml(it.text)}</span>`).join("") +
+        (extraCount > 0 ? `<span class="day-chip-more">+${extraCount} more</span>` : "");
 
       cells.push(`
         <button type="button" class="${classes.join(" ")}" data-key="${key}" data-year="${year}" data-month="${month}" data-day="${day}">
           <span class="day-num">${day}</span>
-          <span class="event-dots">${dots}</span>
+          <span class="day-cell-items">${chipsHtml}</span>
         </button>
       `);
     }

@@ -13,12 +13,12 @@
   --accent-strong: #e8c483;
   --danger: #c0655c;
 
-  --c-event: #d7ab5f;
-  --c-event-soft: rgba(215, 171, 95, 0.14);
-  --c-routine: #6fb3b8;
-  --c-routine-soft: rgba(111, 179, 184, 0.14);
-  --c-goal: #a98fd8;
-  --c-goal-soft: rgba(169, 143, 216, 0.14);
+  --c-event: #f2b33d;
+  --c-event-soft: rgba(242, 179, 61, 0.22);
+  --c-routine: #3ec9d6;
+  --c-routine-soft: rgba(62, 201, 214, 0.22);
+  --c-goal: #b47bf5;
+  --c-goal-soft: rgba(180, 123, 245, 0.22);
 
   --shadow-lg: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
   --radius-lg: 20px;
@@ -309,13 +309,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
   cursor: pointer;
-  font-size: 17px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
   transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease);
-  padding: 6px 4px;
+  padding: 6px 5px 5px;
+  gap: 3px;
+  overflow: hidden;
+  text-align: left;
 }
 
 .day-cell:hover {
@@ -355,31 +356,53 @@ body {
 
 .day-num {
   line-height: 1;
+  flex-shrink: 0;
 }
 
-.event-dots {
+.day-cell-items {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 4px;
-  height: 6px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
 }
 
-.event-dots span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  opacity: 0.9;
+.day-chip {
+  display: block;
+  width: 100%;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.event-dots span.dot-event { background: var(--c-event); }
-.event-dots span.dot-routine { background: var(--c-routine); }
-.event-dots span.dot-goal { background: var(--c-goal); }
+.day-chip.type-event { background: var(--c-event-soft); color: var(--c-event); }
+.day-chip.type-routine { background: var(--c-routine-soft); color: var(--c-routine); }
+.day-chip.type-goal { background: var(--c-goal-soft); color: var(--c-goal); }
 
-.day-cell.today .event-dots span {
-  background: var(--bg);
+.day-chip-more {
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 1px 5px;
 }
 
-.day-cell.other-month .event-dots span {
-  background: var(--text-faint);
+.day-cell.today .day-chip {
+  background: rgba(11, 11, 13, 0.3);
+  color: var(--bg);
+}
+
+.day-cell.today .day-chip-more {
+  color: rgba(11, 11, 13, 0.6);
+}
+
+.day-cell.other-month .day-chip {
+  opacity: 0.55;
 }
 
 /* ---------- Day panel ---------- */
@@ -474,17 +497,21 @@ body {
   border-width: 0;
 }
 
-.event-item.type-event { --item-color: var(--c-event); }
-.event-item.type-routine { --item-color: var(--c-routine); }
-.event-item.type-goal { --item-color: var(--c-goal); }
+.event-item.type-event { --item-color: var(--c-event); --item-color-soft: var(--c-event-soft); }
+.event-item.type-routine { --item-color: var(--c-routine); --item-color-soft: var(--c-routine-soft); }
+.event-item.type-goal { --item-color: var(--c-goal); --item-color-soft: var(--c-goal-soft); }
 
 .event-item .event-badge {
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 700;
   color: var(--item-color, var(--accent));
+  background: var(--item-color-soft, var(--accent-soft));
+  padding: 2px 7px;
+  border-radius: 999px;
   flex-shrink: 0;
+  width: fit-content;
 }
 
 .event-item .event-time {
