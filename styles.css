@@ -476,8 +476,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
+  background: var(--item-color-soft, var(--surface));
+  border: 1px solid var(--item-color, var(--border-soft));
   border-left: 3px solid var(--item-color, var(--accent));
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -503,15 +503,11 @@ body {
 
 .event-item .event-badge {
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 700;
   color: var(--item-color, var(--accent));
-  background: var(--item-color-soft, var(--accent-soft));
-  padding: 2px 7px;
-  border-radius: 999px;
   flex-shrink: 0;
-  width: fit-content;
 }
 
 .event-item .event-time {
