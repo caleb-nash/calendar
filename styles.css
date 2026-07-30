@@ -393,9 +393,12 @@ body {
 }
 
 .day-cell.today .day-chip {
-  background: rgba(11, 11, 13, 0.3);
   color: var(--bg);
 }
+
+.day-cell.today .day-chip.type-event { background: var(--c-event); }
+.day-cell.today .day-chip.type-routine { background: var(--c-routine); }
+.day-cell.today .day-chip.type-goal { background: var(--c-goal); }
 
 .day-cell.today .day-chip-more {
   color: rgba(11, 11, 13, 0.6);
