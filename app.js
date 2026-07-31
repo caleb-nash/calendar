@@ -219,7 +219,7 @@
 
   function itemAccentStyle(it) {
     const hue = hashHue(it.id);
-    return `--item-color: hsl(${hue}, 70%, 62%); --item-color-soft: hsla(${hue}, 70%, 62%, 0.2);`;
+    return `--item-color: hsl(${hue}, 62%, 50%); --item-color-soft: hsla(${hue}, 62%, 50%, 0.2);`;
   }
 
   function goalDurationText(it) {
