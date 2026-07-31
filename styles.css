@@ -375,12 +375,13 @@ body {
   gap: 4px;
   width: 100%;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--item-color, var(--text));
+  background: var(--item-color-soft, rgba(255, 255, 255, 0.07));
+  border: 1px solid var(--item-color, transparent);
+  color: var(--text);
 }
 
 .day-chip-dot {
@@ -408,6 +409,7 @@ body {
 
 .day-cell.today .day-chip {
   background: rgba(11, 11, 13, 0.32);
+  color: var(--bg);
 }
 
 .day-cell.today .day-chip-more {
