@@ -521,10 +521,6 @@ body {
   color: var(--item-color);
 }
 
-.event-item.custom-color .event-text {
-  color: var(--item-color);
-}
-
 .event-item .event-badge {
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -1544,10 +1540,6 @@ body {
   width: fit-content;
   background: var(--item-color-soft, var(--c-goal-soft));
   color: var(--item-color, var(--c-goal));
-}
-
-.tracked-goal-card.custom-color .tracked-goal-name {
-  color: var(--item-color);
 }
 
 .tracked-goal-name {
