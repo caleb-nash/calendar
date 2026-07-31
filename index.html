@@ -251,7 +251,15 @@
             <button type="button" class="add-cycle-btn" id="addCycleItemBtn">+ Add day</button>
           </div>
 
-          <button type="submit" class="save-btn" id="saveBtn" disabled>Save</button>
+          <div class="field-group" id="colorPickerWrap" hidden>
+            <span class="field-label">Color</span>
+            <div class="color-swatches" id="colorSwatches"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="delete-item-btn" id="deleteItemBtn" hidden>Delete</button>
+            <button type="submit" class="save-btn" id="saveBtn" disabled>Save</button>
+          </div>
         </form>
       </div>
     </div>

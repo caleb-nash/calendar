@@ -32,7 +32,10 @@
     editingId: null,
     editingSource: null,
     editingOriginalDate: null,
+    formColorHue: null,
   };
+
+  const COLOR_HUES = [350, 25, 45, 120, 165, 200, 220, 260, 300, 330];
 
   // ---------- Elements ----------
   const monthTitleEl = document.getElementById("monthTitle");
@@ -113,6 +116,9 @@
   const cycleFieldWrap = document.getElementById("cycleFieldWrap");
   const cycleItemsEl = document.getElementById("cycleItems");
   const addCycleItemBtn = document.getElementById("addCycleItemBtn");
+  const colorPickerWrap = document.getElementById("colorPickerWrap");
+  const colorSwatchesEl = document.getElementById("colorSwatches");
+  const deleteItemBtn = document.getElementById("deleteItemBtn");
   const saveBtn = document.getElementById("saveBtn");
 
   const multiDayBtn = document.getElementById("multiDayBtn");
@@ -239,6 +245,9 @@
   };
 
   function itemAccentStyle(it) {
+    if (typeof it.color === "number") {
+      return `--item-color: hsl(${it.color}, 55%, 46%); --item-color-soft: hsla(${it.color}, 55%, 46%, 0.22);`;
+    }
     const cfg = TYPE_HUE_RANGES[it.type] || TYPE_HUE_RANGES.event;
     const n = hashNum((it.text || "").trim().toLowerCase());
     const hue = (cfg.base + (n % cfg.spread)) % 360;
@@ -315,7 +324,7 @@
   function getItemsForDate(key) {
     const items = [];
     (state.data.singleEvents[key] || []).forEach((ev) => {
-      items.push({ id: ev.id, type: ev.type, time: ev.time, text: ev.text, source: "single" });
+      items.push({ id: ev.id, type: ev.type, time: ev.time, text: ev.text, source: "single", color: ev.color });
     });
     state.data.routines.forEach((r) => {
       const occ = getRoutineOccurrence(r, key);
@@ -331,6 +340,7 @@
           endDate: occ.endDate,
           tracked,
           completedToday: tracked && Array.isArray(r.completedDates) && r.completedDates.includes(key),
+          color: r.color,
         });
       }
     });
@@ -630,7 +640,7 @@
     }
 
     return `
-      <div class="tracked-goal-card" style="${itemAccentStyle({ type: "goal", text: routine.text })}">
+      <div class="tracked-goal-card" style="${itemAccentStyle({ type: "goal", text: routine.text, color: routine.color })}">
         <div class="tracked-goal-head">
           <span class="event-badge">Goal</span>
           <span class="tracked-goal-name">${escapeHtml(routine.text)}</span>
@@ -743,6 +753,21 @@
   }
 
   // ---------- Add-event modal ----------
+  function buildColorSwatches() {
+    const autoBtn = `<button type="button" class="color-swatch auto-swatch active" data-hue="">Auto</button>`;
+    const hueBtns = COLOR_HUES.map(
+      (h) => `<button type="button" class="color-swatch" data-hue="${h}" style="--swatch-color: hsl(${h}, 55%, 46%)" aria-label="Custom color"></button>`
+    ).join("");
+    colorSwatchesEl.innerHTML = autoBtn + hueBtns;
+  }
+
+  function setActiveColorSwatch(hue) {
+    colorSwatchesEl.querySelectorAll(".color-swatch").forEach((b) => {
+      const active = b.dataset.hue === "" ? hue === null : Number(b.dataset.hue) === hue;
+      b.classList.toggle("active", active);
+    });
+  }
+
   function resetAddForm(presetKey) {
     state.editingId = null;
     state.editingSource = null;
@@ -771,6 +796,10 @@
     dailyTaskWrap.hidden = true;
     goalUntilDateWrap.hidden = true;
     goalUntilCompletionsWrap.hidden = true;
+    state.formColorHue = null;
+    setActiveColorSwatch(null);
+    colorPickerWrap.hidden = true;
+    deleteItemBtn.hidden = true;
     cycleItemsEl.innerHTML = "";
     addCycleRow();
     addCycleRow();
@@ -844,6 +873,7 @@
     eventRepeatGroup.hidden = type !== "event";
     multiDayBtn.disabled = type !== "event";
     trackedGoalWrap.hidden = type !== "goal";
+    colorPickerWrap.hidden = !type;
     if (type !== "goal") {
       dailyTaskWrap.hidden = true;
       goalUntilDateWrap.hidden = true;
@@ -998,6 +1028,10 @@
       repeatHint.textContent = REPEAT_HINTS[record.repeat];
     }
 
+    state.formColorHue = typeof record.color === "number" ? record.color : null;
+    setActiveColorSwatch(state.formColorHue);
+    deleteItemBtn.hidden = false;
+
     updateSaveEnabled();
   }
 
@@ -1098,6 +1132,7 @@
           time: formTime.value || null,
           weeks: state.eventForever ? null : state.eventRepeatWeeks,
           text,
+          color: state.formColorHue,
         });
       } else {
         if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
@@ -1106,6 +1141,7 @@
           type,
           time: formTime.value || null,
           text,
+          color: state.formColorHue,
         });
       }
     } else if (type === "goal") {
@@ -1124,6 +1160,7 @@
         time: null,
         text,
         tracked,
+        color: state.formColorHue,
       };
       if (freq === "untilDate") record.untilDate = goalUntilDateInput.value;
       if (freq === "untilCompletions") record.targetCompletions = parseInt(goalUntilCompletionsInput.value, 10);
@@ -1147,6 +1184,7 @@
           startDate: key,
           time: formTime.value || null,
           items,
+          color: state.formColorHue,
         });
       } else {
         const text = formText.value.trim();
@@ -1158,6 +1196,7 @@
           startDate: key,
           time: formTime.value || null,
           text,
+          color: state.formColorHue,
         });
       }
     }
@@ -1472,6 +1511,29 @@
     updateSaveEnabled();
   });
 
+  colorSwatchesEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".color-swatch");
+    if (!btn) return;
+    state.formColorHue = btn.dataset.hue === "" ? null : Number(btn.dataset.hue);
+    setActiveColorSwatch(state.formColorHue);
+  });
+
+  deleteItemBtn.addEventListener("click", () => {
+    if (!state.editingId) return;
+    if (state.editingSource === "routine") {
+      const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
+      if (!ok) return;
+      deleteRoutine(state.editingId);
+    } else {
+      deleteSingleEvent(state.editingOriginalDate, state.editingId);
+    }
+    closeAddModal();
+    renderMonth();
+    renderTodayPanel();
+    renderDayView();
+    renderTrackedGoalsView();
+  });
+
   cycleItemsEl.addEventListener("input", updateSaveEnabled);
   formText.addEventListener("input", updateSaveEnabled);
   formDate.addEventListener("input", updateSaveEnabled);
@@ -1499,6 +1561,7 @@
   });
 
   // ---------- Init ----------
+  buildColorSwatches();
   setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
   renderWeekdaysRow();
   renderTodayPanel();
