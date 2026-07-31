@@ -13,12 +13,12 @@
   --accent-strong: #e8c483;
   --danger: #c0655c;
 
-  --c-event: #dba032;
-  --c-event-soft: rgba(219, 160, 50, 0.22);
-  --c-routine: #2fa8b3;
-  --c-routine-soft: rgba(47, 168, 179, 0.22);
-  --c-goal: #9c5eea;
-  --c-goal-soft: rgba(156, 94, 234, 0.22);
+  --c-event: #4c9e6f;
+  --c-event-soft: rgba(76, 158, 111, 0.22);
+  --c-routine: #4f7fc4;
+  --c-routine-soft: rgba(79, 127, 196, 0.22);
+  --c-goal: #c8555f;
+  --c-goal-soft: rgba(200, 85, 95, 0.22);
 
   --shadow-lg: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
   --radius-lg: 20px;

@@ -209,17 +209,26 @@
     return div.innerHTML;
   }
 
-  function hashHue(id) {
+  function hashNum(str) {
     let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
     }
-    return hash % 360;
+    return hash;
   }
 
+  const TYPE_HUE_RANGES = {
+    event: { base: 120, spread: 40 },
+    routine: { base: 195, spread: 40 },
+    goal: { base: 350, spread: 30 },
+  };
+
   function itemAccentStyle(it) {
-    const hue = hashHue(it.id);
-    return `--item-color: hsl(${hue}, 62%, 50%); --item-color-soft: hsla(${hue}, 62%, 50%, 0.2);`;
+    const cfg = TYPE_HUE_RANGES[it.type] || TYPE_HUE_RANGES.event;
+    const n = hashNum((it.text || "").trim().toLowerCase());
+    const hue = (cfg.base + (n % cfg.spread)) % 360;
+    const lightness = 42 + (n % 10);
+    return `--item-color: hsl(${hue}, 55%, ${lightness}%); --item-color-soft: hsla(${hue}, 55%, ${lightness}%, 0.22);`;
   }
 
   function goalDurationText(it) {
@@ -357,7 +366,8 @@
       if (state.multiDayPicking && state.multiDaySelectedDates.has(key)) classes.push("multi-picked");
 
       const maxChips = 3;
-      const visibleItems = dayItems.slice(0, maxChips);
+      const prioritizedItems = [...dayItems].sort((a, b) => (a.type === "event" ? 0 : 1) - (b.type === "event" ? 0 : 1));
+      const visibleItems = prioritizedItems.slice(0, maxChips);
       const extraCount = dayItems.length - visibleItems.length;
       const chipsHtml =
         visibleItems
