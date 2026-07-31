@@ -1098,7 +1098,7 @@ body {
 
 .segmented.goal-freq {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   margin-bottom: 8px;
 }
 
@@ -1112,6 +1112,28 @@ body {
   border-color: var(--c-goal);
   color: var(--c-goal);
   background: var(--c-goal-soft);
+}
+
+.goal-sub-field {
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--c-goal);
+  cursor: pointer;
 }
 
 
@@ -1377,4 +1399,95 @@ body {
 .multiday-save-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ---------- Tracked goals view ---------- */
+.view-toggle-btn.active {
+  border-color: var(--c-goal);
+  color: var(--c-goal);
+  background: var(--c-goal-soft);
+}
+
+.tracked-goals-card {
+  overflow-y: auto;
+}
+
+.tracked-goals-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.tracked-goal-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--item-color, var(--c-goal));
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  padding: 16px 18px;
+}
+
+.tracked-goal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.tracked-goal-head .event-badge {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  width: fit-content;
+  background: var(--c-goal-soft);
+  color: var(--c-goal);
+}
+
+.tracked-goal-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tracked-goal-daily {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.progress-bar {
+  display: flex;
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.progress-segment {
+  height: 100%;
+}
+
+.progress-green {
+  background: var(--c-event);
+}
+
+.progress-red {
+  background: var(--c-goal);
+}
+
+.progress-grey {
+  background: var(--text-faint);
+  opacity: 0.35;
+}
+
+.tracked-goal-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-faint);
 }

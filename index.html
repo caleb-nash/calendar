@@ -17,6 +17,7 @@
         </button>
       </div>
       <div class="topbar-right">
+        <button class="view-toggle-btn" id="trackedGoalsToggleBtn" type="button">Tracked Goals</button>
         <button class="view-toggle-btn" id="viewToggleBtn" type="button">Month view</button>
         <button class="icon-btn" id="exportDataBtn" aria-label="Export calendar backup" title="Export backup" type="button">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -109,6 +110,16 @@
             <div class="day-view-timeline" id="dayViewTimeline"></div>
           </div>
         </section>
+
+        <section class="calendar-card tracked-goals-card" id="trackedGoalsView" aria-label="Tracked goals" hidden>
+          <div class="cal-header">
+            <div class="month-title-wrap" style="margin: 0 auto;">
+              <h1>Tracked Goals</h1>
+            </div>
+          </div>
+          <div class="tracked-goals-body" id="trackedGoalsBody"></div>
+          <p class="empty-state" id="trackedGoalsEmptyState">No tracked goals yet. Add a Goal and check "Tracked Goal" to see it here.</p>
+        </section>
       </main>
     </div>
 
@@ -177,13 +188,37 @@
               <button type="button" class="seg-btn" data-freq="weekly">Weekly</button>
               <button type="button" class="seg-btn" data-freq="monthly">Monthly</button>
               <button type="button" class="seg-btn" data-freq="yearly">Yearly</button>
+              <button type="button" class="seg-btn" data-freq="untilDate">Until date</button>
+              <button type="button" class="seg-btn" data-freq="untilCompletions" id="untilCompletionsBtn" hidden>Until completions</button>
             </div>
             <p class="hint" id="goalFreqHint">Stays through the rest of the day, starting from the date above.</p>
+
+            <div class="field-group goal-sub-field" id="goalUntilDateWrap" hidden>
+              <label class="field-label" for="goalUntilDateInput">Until date</label>
+              <input type="date" id="goalUntilDateInput" />
+            </div>
+
+            <div class="field-group goal-sub-field" id="goalUntilCompletionsWrap" hidden>
+              <label class="field-label" for="goalUntilCompletionsInput">Target completions</label>
+              <input type="number" id="goalUntilCompletionsInput" min="1" max="1000" placeholder="e.g. 30" />
+            </div>
           </div>
 
           <div class="field-group" id="singleTextWrap" hidden>
             <label class="field-label" for="formText" id="singleTextLabel">Description</label>
             <input type="text" id="formText" maxlength="120" placeholder="What's this for?" autocomplete="off" />
+          </div>
+
+          <div class="field-group" id="trackedGoalWrap" hidden>
+            <label class="checkbox-field">
+              <input type="checkbox" id="trackedGoalCheckbox" />
+              <span>Tracked Goal</span>
+            </label>
+          </div>
+
+          <div class="field-group" id="dailyTaskWrap" hidden>
+            <label class="field-label" for="formDailyTask">Daily task</label>
+            <input type="text" id="formDailyTask" maxlength="120" placeholder="e.g. Under 2 hours" autocomplete="off" />
           </div>
 
           <div class="field-group" id="eventRepeatGroup" hidden>

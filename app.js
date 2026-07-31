@@ -46,8 +46,12 @@
   const importDataBtn = document.getElementById("importDataBtn");
   const importFileInput = document.getElementById("importFileInput");
   const viewToggleBtn = document.getElementById("viewToggleBtn");
+  const trackedGoalsToggleBtn = document.getElementById("trackedGoalsToggleBtn");
   const monthView = document.getElementById("monthView");
   const dayView = document.getElementById("dayView");
+  const trackedGoalsView = document.getElementById("trackedGoalsView");
+  const trackedGoalsBody = document.getElementById("trackedGoalsBody");
+  const trackedGoalsEmptyState = document.getElementById("trackedGoalsEmptyState");
   const dayPrevBtn = document.getElementById("dayPrevBtn");
   const dayNextBtn = document.getElementById("dayNextBtn");
   const dayTodayBtn = document.getElementById("dayTodayBtn");
@@ -94,9 +98,18 @@
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
   const goalFreqMode = document.getElementById("goalFreqMode");
   const goalFreqHint = document.getElementById("goalFreqHint");
+  const untilCompletionsBtn = document.getElementById("untilCompletionsBtn");
+  const goalUntilDateWrap = document.getElementById("goalUntilDateWrap");
+  const goalUntilDateInput = document.getElementById("goalUntilDateInput");
+  const goalUntilCompletionsWrap = document.getElementById("goalUntilCompletionsWrap");
+  const goalUntilCompletionsInput = document.getElementById("goalUntilCompletionsInput");
   const singleTextWrap = document.getElementById("singleTextWrap");
   const singleTextLabel = document.getElementById("singleTextLabel");
   const formText = document.getElementById("formText");
+  const trackedGoalWrap = document.getElementById("trackedGoalWrap");
+  const trackedGoalCheckbox = document.getElementById("trackedGoalCheckbox");
+  const dailyTaskWrap = document.getElementById("dailyTaskWrap");
+  const formDailyTask = document.getElementById("formDailyTask");
   const cycleFieldWrap = document.getElementById("cycleFieldWrap");
   const cycleItemsEl = document.getElementById("cycleItems");
   const addCycleItemBtn = document.getElementById("addCycleItemBtn");
@@ -120,6 +133,8 @@
     weekly: "Stays through the rest of that week (until Saturday), starting from the date above.",
     monthly: "Stays through the rest of that month, starting from the date above.",
     yearly: "Stays through the rest of that year, starting from the date above.",
+    untilDate: "Stays every day until the date you pick below.",
+    untilCompletions: "Stays every day until you reach the target number of completions below.",
   };
 
   // ---------- Storage ----------
@@ -232,27 +247,28 @@
   }
 
   function goalDurationText(it) {
+    if (it.repeat === "untilCompletions") return "Tracked goal — until target completions";
     if (!it.endDate) return "";
-    const labels = { weekly: "Weekly goal", monthly: "Monthly goal", yearly: "Yearly goal" };
+    const labels = { weekly: "Weekly goal", monthly: "Monthly goal", yearly: "Yearly goal", untilDate: "Goal" };
     const label = labels[it.repeat] || "Goal";
     return `${label} — ends ${MONTHS[it.endDate.getMonth()]} ${it.endDate.getDate()}`;
   }
 
   // ---------- Routine occurrence math ----------
+  function computeGoalEndDate(routine, start) {
+    if (routine.repeat === "daily") return start;
+    if (routine.repeat === "weekly") return new Date(start.getFullYear(), start.getMonth(), start.getDate() + (6 - start.getDay()));
+    if (routine.repeat === "monthly") return new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    if (routine.repeat === "yearly") return new Date(start.getFullYear(), 11, 31);
+    if (routine.repeat === "untilDate") return routine.untilDate ? parseDateKey(routine.untilDate) : start;
+    if (routine.repeat === "untilCompletions") return null;
+    return undefined;
+  }
+
   function getGoalOccurrence(routine, target, start) {
-    let endDate;
-    if (routine.repeat === "daily") {
-      endDate = start;
-    } else if (routine.repeat === "weekly") {
-      endDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (6 - start.getDay()));
-    } else if (routine.repeat === "monthly") {
-      endDate = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-    } else if (routine.repeat === "yearly") {
-      endDate = new Date(start.getFullYear(), 11, 31);
-    } else {
-      return null;
-    }
-    if (target > endDate) return null;
+    const endDate = computeGoalEndDate(routine, start);
+    if (endDate === undefined) return null;
+    if (endDate && target > endDate) return null;
     return { text: routine.text, time: routine.time, endDate };
   }
 
@@ -304,7 +320,18 @@
     state.data.routines.forEach((r) => {
       const occ = getRoutineOccurrence(r, key);
       if (occ) {
-        items.push({ id: r.id, type: r.type || "routine", time: occ.time, text: occ.text, source: "routine", repeat: r.repeat, endDate: occ.endDate });
+        const tracked = r.type === "goal" && !!r.tracked;
+        items.push({
+          id: r.id,
+          type: r.type || "routine",
+          time: occ.time,
+          text: tracked ? r.dailyTask || r.text : occ.text,
+          source: "routine",
+          repeat: r.repeat,
+          endDate: occ.endDate,
+          tracked,
+          completedToday: tracked && Array.isArray(r.completedDates) && r.completedDates.includes(key),
+        });
       }
     });
     items.sort((a, b) => {
@@ -448,7 +475,7 @@
         </button>
         ${
           it.type === "goal"
-            ? `<button type="button" class="complete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            ? `<button type="button" class="complete-btn${it.completedToday ? " checked" : ""}" data-id="${it.id}" data-source="${it.source}" data-tracked="${it.tracked ? "1" : "0"}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
             : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
         }
       </div>
@@ -537,9 +564,93 @@
     state.viewMode = mode;
     monthView.hidden = mode !== "month";
     dayView.hidden = mode !== "day";
-    viewToggleBtn.textContent = mode === "day" ? "Month view" : "Day view";
+    trackedGoalsView.hidden = mode !== "trackedGoals";
+    trackedGoalsToggleBtn.classList.toggle("active", mode === "trackedGoals");
+    if (mode !== "trackedGoals") {
+      viewToggleBtn.textContent = mode === "day" ? "Month view" : "Day view";
+    }
     renderMonth();
     renderDayView();
+    renderTrackedGoalsView();
+  }
+
+  // ---------- Tracked goals ----------
+  function daysBetweenInclusive(a, b) {
+    return Math.round((b - a) / 86400000) + 1;
+  }
+
+  function trackedGoalProgress(routine) {
+    const start = parseDateKey(routine.startDate);
+    const completedDates = Array.isArray(routine.completedDates) ? routine.completedDates : [];
+
+    if (routine.repeat === "untilCompletions") {
+      const target = routine.targetCompletions || 1;
+      const done = completedDates.length;
+      const pct = Math.min(100, (done / target) * 100);
+      return { mode: "completions", pct, done, target };
+    }
+
+    const end = computeGoalEndDate(routine, start);
+    const totalDays = Math.max(1, daysBetweenInclusive(start, end));
+    const cappedToday = today > end ? end : today;
+    const elapsedDays = cappedToday < start ? 0 : Math.min(totalDays, daysBetweenInclusive(start, cappedToday));
+    const inRangeCompleted = completedDates.filter((k) => {
+      const d = parseDateKey(k);
+      return d >= start && d <= end;
+    }).length;
+    const completedDays = Math.min(inRangeCompleted, elapsedDays);
+    const missedDays = Math.max(0, elapsedDays - completedDays);
+    const remainingDays = Math.max(0, totalDays - elapsedDays);
+
+    return {
+      mode: "calendar",
+      greenPct: (completedDays / totalDays) * 100,
+      redPct: (missedDays / totalDays) * 100,
+      greyPct: (remainingDays / totalDays) * 100,
+      completedDays,
+      totalDays,
+      elapsedDays,
+    };
+  }
+
+  function trackedGoalCardHtml(routine) {
+    const progress = trackedGoalProgress(routine);
+    let barHtml;
+    let metaText;
+    if (progress.mode === "completions") {
+      barHtml = `<div class="progress-bar"><div class="progress-segment progress-green" style="width:${progress.pct}%"></div></div>`;
+      metaText = `${progress.done} / ${progress.target} completions`;
+    } else {
+      barHtml = `<div class="progress-bar">
+        <div class="progress-segment progress-green" style="width:${progress.greenPct}%"></div>
+        <div class="progress-segment progress-red" style="width:${progress.redPct}%"></div>
+        <div class="progress-segment progress-grey" style="width:${progress.greyPct}%"></div>
+      </div>`;
+      metaText = `Day ${progress.elapsedDays} / ${progress.totalDays} — completed ${progress.completedDays} time${progress.completedDays === 1 ? "" : "s"}`;
+    }
+
+    return `
+      <div class="tracked-goal-card" style="${itemAccentStyle({ type: "goal", text: routine.text })}">
+        <div class="tracked-goal-head">
+          <span class="event-badge">Goal</span>
+          <span class="tracked-goal-name">${escapeHtml(routine.text)}</span>
+        </div>
+        ${routine.dailyTask ? `<div class="tracked-goal-daily">Daily: ${escapeHtml(routine.dailyTask)}</div>` : ""}
+        ${barHtml}
+        <div class="tracked-goal-meta">${escapeHtml(metaText)}</div>
+      </div>
+    `;
+  }
+
+  function renderTrackedGoalsView() {
+    const trackedGoals = state.data.routines.filter((r) => r.type === "goal" && r.tracked);
+    if (trackedGoals.length === 0) {
+      trackedGoalsBody.innerHTML = "";
+      trackedGoalsEmptyState.style.display = "block";
+      return;
+    }
+    trackedGoalsEmptyState.style.display = "none";
+    trackedGoalsBody.innerHTML = trackedGoals.map((r) => trackedGoalCardHtml(r)).join("");
   }
 
   function setTodayPanelHidden(hidden) {
@@ -651,6 +762,15 @@
     formTime.value = "";
     formText.value = "";
     eventWeeksInput.value = "";
+    trackedGoalCheckbox.checked = false;
+    formDailyTask.value = "";
+    goalUntilDateInput.value = "";
+    goalUntilCompletionsInput.value = "";
+    untilCompletionsBtn.hidden = true;
+    trackedGoalWrap.hidden = true;
+    dailyTaskWrap.hidden = true;
+    goalUntilDateWrap.hidden = true;
+    goalUntilCompletionsWrap.hidden = true;
     cycleItemsEl.innerHTML = "";
     addCycleRow();
     addCycleRow();
@@ -703,12 +823,32 @@
     updateFieldsForType();
   }
 
+  function updateGoalConditionalFields() {
+    const tracked = trackedGoalCheckbox.checked;
+    dailyTaskWrap.hidden = !tracked;
+    untilCompletionsBtn.hidden = !tracked;
+    if (!tracked && state.goalFrequency === "untilCompletions") {
+      state.goalFrequency = "daily";
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.toggle("active", b.dataset.freq === "daily"));
+    }
+    goalUntilDateWrap.hidden = state.goalFrequency !== "untilDate";
+    goalUntilCompletionsWrap.hidden = state.goalFrequency !== "untilCompletions";
+    goalFreqHint.textContent = GOAL_FREQ_HINTS[state.goalFrequency];
+    updateSaveEnabled();
+  }
+
   function updateFieldsForType() {
     const type = state.selectedType;
     repeatModeGroup.hidden = type !== "routine";
     goalRepeatGroup.hidden = type !== "goal";
     eventRepeatGroup.hidden = type !== "event";
     multiDayBtn.disabled = type !== "event";
+    trackedGoalWrap.hidden = type !== "goal";
+    if (type !== "goal") {
+      dailyTaskWrap.hidden = true;
+      goalUntilDateWrap.hidden = true;
+      goalUntilCompletionsWrap.hidden = true;
+    }
 
     if (type === "routine") {
       const repeat = state.selectedRepeat;
@@ -730,6 +870,7 @@
       cycleFieldWrap.hidden = true;
       singleTextLabel.textContent = "Goal";
       formText.placeholder = "What's the goal?";
+      updateGoalConditionalFields();
     } else {
       timeFieldWrap.hidden = true;
       singleTextWrap.hidden = true;
@@ -746,7 +887,27 @@
       saveBtn.disabled = true;
       return;
     }
-    if (type === "event" || type === "goal") {
+    if (type === "goal") {
+      if (formText.value.trim().length === 0) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (state.goalFrequency === "untilDate" && !goalUntilDateInput.value) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (state.goalFrequency === "untilCompletions" && !(parseInt(goalUntilCompletionsInput.value, 10) > 0)) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (trackedGoalCheckbox.checked && formDailyTask.value.trim().length === 0) {
+        saveBtn.disabled = true;
+        return;
+      }
+      saveBtn.disabled = false;
+      return;
+    }
+    if (type === "event") {
       saveBtn.disabled = formText.value.trim().length === 0;
       return;
     }
@@ -814,7 +975,11 @@
       goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
         b.classList.toggle("active", b.dataset.freq === record.repeat);
       });
-      goalFreqHint.textContent = GOAL_FREQ_HINTS[record.repeat];
+      trackedGoalCheckbox.checked = !!record.tracked;
+      formDailyTask.value = record.dailyTask || "";
+      goalUntilDateInput.value = record.untilDate || "";
+      goalUntilCompletionsInput.value = record.targetCompletions || "";
+      updateGoalConditionalFields();
     } else if (item.type === "routine") {
       formDate.value = record.startDate;
       repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => {
@@ -907,7 +1072,12 @@
     const key = formDate.value;
     if (!type || !key) return;
 
+    let preservedCompletedDates = null;
     if (state.editingId) {
+      const existing = findRecordForItem(state.editingId, state.editingSource);
+      if (existing && existing.type === "goal" && Array.isArray(existing.completedDates)) {
+        preservedCompletedDates = existing.completedDates;
+      }
       if (state.editingSource === "routine") {
         deleteRoutine(state.editingId);
       } else {
@@ -941,14 +1111,27 @@
     } else if (type === "goal") {
       const text = formText.value.trim();
       if (!text) return;
-      state.data.routines.push({
+      const freq = state.goalFrequency;
+      if (freq === "untilDate" && !goalUntilDateInput.value) return;
+      if (freq === "untilCompletions" && !(parseInt(goalUntilCompletionsInput.value, 10) > 0)) return;
+      const tracked = trackedGoalCheckbox.checked;
+      if (tracked && !formDailyTask.value.trim()) return;
+      const record = {
         id: uid(),
         type: "goal",
-        repeat: state.goalFrequency,
+        repeat: freq,
         startDate: key,
         time: null,
         text,
-      });
+        tracked,
+      };
+      if (freq === "untilDate") record.untilDate = goalUntilDateInput.value;
+      if (freq === "untilCompletions") record.targetCompletions = parseInt(goalUntilCompletionsInput.value, 10);
+      if (tracked) {
+        record.dailyTask = formDailyTask.value.trim();
+        record.completedDates = preservedCompletedDates || [];
+      }
+      state.data.routines.push(record);
     } else if (type === "routine") {
       const repeat = state.selectedRepeat;
       if (!repeat) return;
@@ -984,6 +1167,7 @@
     renderMonth();
     renderTodayPanel();
     renderDayView();
+    renderTrackedGoalsView();
   }
 
   // ---------- Event listeners ----------
@@ -1006,6 +1190,10 @@
 
   viewToggleBtn.addEventListener("click", () => {
     setViewMode(state.viewMode === "day" ? "month" : "day");
+  });
+
+  trackedGoalsToggleBtn.addEventListener("click", () => {
+    setViewMode(state.viewMode === "trackedGoals" ? "day" : "trackedGoals");
   });
 
   sidebarCalPrev.addEventListener("click", () => {
@@ -1136,6 +1324,20 @@
     if (completeBtn) {
       if (completeBtn.classList.contains("checked")) return;
       const { id, source } = completeBtn.dataset;
+
+      if (completeBtn.dataset.tracked === "1") {
+        completeBtn.classList.add("checked");
+        const routine = state.data.routines.find((r) => r.id === id);
+        if (routine) {
+          if (!Array.isArray(routine.completedDates)) routine.completedDates = [];
+          const key = currentPanelKey();
+          if (!routine.completedDates.includes(key)) routine.completedDates.push(key);
+          saveData();
+        }
+        renderTrackedGoalsView();
+        return;
+      }
+
       completeBtn.classList.add("checked");
       const item = completeBtn.closest(".event-item");
       setTimeout(() => {
@@ -1167,6 +1369,7 @@
     renderTodayPanel();
     renderMonth();
     renderDayView();
+    renderTrackedGoalsView();
   }
 
   todayEventListEl.addEventListener("click", handleItemListClick);
@@ -1188,12 +1391,17 @@
 
   goalFreqMode.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
-    if (!btn) return;
+    if (!btn || btn.hidden) return;
     goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     state.goalFrequency = btn.dataset.freq;
-    goalFreqHint.textContent = GOAL_FREQ_HINTS[state.goalFrequency];
+    updateGoalConditionalFields();
   });
+
+  trackedGoalCheckbox.addEventListener("change", updateGoalConditionalFields);
+  goalUntilDateInput.addEventListener("input", updateSaveEnabled);
+  goalUntilCompletionsInput.addEventListener("input", updateSaveEnabled);
+  formDailyTask.addEventListener("input", updateSaveEnabled);
 
   eventWeekdayPicker.addEventListener("click", (e) => {
     const btn = e.target.closest(".weekday-btn");
