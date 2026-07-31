@@ -389,11 +389,8 @@ body {
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--item-color);
 }
-
-.day-chip-dot.dot-event { background: var(--c-event); }
-.day-chip-dot.dot-routine { background: var(--c-routine); }
-.day-chip-dot.dot-goal { background: var(--c-goal); }
 
 .day-chip-text {
   overflow: hidden;
