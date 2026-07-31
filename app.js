@@ -29,6 +29,9 @@
     viewMode: "day",
     sidebarCalYear: today.getFullYear(),
     sidebarCalMonth: today.getMonth(),
+    editingId: null,
+    editingSource: null,
+    editingOriginalDate: null,
   };
 
   // ---------- Elements ----------
@@ -70,6 +73,7 @@
   const addModal = document.getElementById("addModal");
   const closeModalBtn = document.getElementById("closeModalBtn");
   const addForm = document.getElementById("addForm");
+  const addModalTitle = document.getElementById("addModalTitle");
   const formDate = document.getElementById("formDate");
   const miniCalToggle = document.getElementById("miniCalToggle");
   const miniCalendar = document.getElementById("miniCalendar");
@@ -205,6 +209,26 @@
     return div.innerHTML;
   }
 
+  function hashHue(id) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return hash % 360;
+  }
+
+  function itemAccentStyle(it) {
+    const hue = hashHue(it.id);
+    return `--item-color: hsl(${hue}, 70%, 62%); --item-color-soft: hsla(${hue}, 70%, 62%, 0.2);`;
+  }
+
+  function goalDurationText(it) {
+    if (!it.endDate) return "";
+    const labels = { weekly: "Weekly goal", monthly: "Monthly goal", yearly: "Yearly goal" };
+    const label = labels[it.repeat] || "Goal";
+    return `${label} — ends ${MONTHS[it.endDate.getMonth()]} ${it.endDate.getDate()}`;
+  }
+
   // ---------- Routine occurrence math ----------
   function getGoalOccurrence(routine, target, start) {
     let endDate;
@@ -220,7 +244,7 @@
       return null;
     }
     if (target > endDate) return null;
-    return { text: routine.text, time: routine.time };
+    return { text: routine.text, time: routine.time, endDate };
   }
 
   function getRoutineOccurrence(routine, key) {
@@ -271,7 +295,7 @@
     state.data.routines.forEach((r) => {
       const occ = getRoutineOccurrence(r, key);
       if (occ) {
-        items.push({ id: r.id, type: r.type || "routine", time: occ.time, text: occ.text, source: "routine", repeat: r.repeat });
+        items.push({ id: r.id, type: r.type || "routine", time: occ.time, text: occ.text, source: "routine", repeat: r.repeat, endDate: occ.endDate });
       }
     });
     items.sort((a, b) => {
@@ -336,8 +360,12 @@
       const visibleItems = dayItems.slice(0, maxChips);
       const extraCount = dayItems.length - visibleItems.length;
       const chipsHtml =
-        visibleItems.map((it) => `<span class="day-chip type-${it.type}">${escapeHtml(it.text)}</span>`).join("") +
-        (extraCount > 0 ? `<span class="day-chip-more">+${extraCount} more</span>` : "");
+        visibleItems
+          .map(
+            (it) =>
+              `<span class="day-chip" style="${itemAccentStyle(it)}"><span class="day-chip-dot dot-${it.type}"></span><span class="day-chip-text">${escapeHtml(it.text)}</span></span>`
+          )
+          .join("") + (extraCount > 0 ? `<span class="day-chip-more">+${extraCount} more</span>` : "");
 
       cells.push(`
         <button type="button" class="${classes.join(" ")}" data-key="${key}" data-year="${year}" data-month="${month}" data-day="${day}">
@@ -396,19 +424,33 @@
   }
 
   // ---------- Info panel ----------
-  function itemInnerHtml(it) {
+  function itemInnerHtml(it, durationText) {
     return `
       <div class="event-main">
         <span class="event-badge">${TYPE_LABELS[it.type]}</span>
         <span class="event-text">${escapeHtml(it.text)}</span>
+        ${durationText ? `<span class="goal-duration">${escapeHtml(durationText)}</span>` : ""}
       </div>
       ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
-      ${
-        it.type === "goal"
-          ? `<button type="button" class="complete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
-          : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
-      }
+      <div class="event-actions">
+        <button type="button" class="edit-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Edit">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>
+        </button>
+        ${
+          it.type === "goal"
+            ? `<button type="button" class="complete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
+        }
+      </div>
     `;
+  }
+
+  function isLongGoal(it) {
+    return it.type === "goal" && it.repeat && it.repeat !== "daily";
+  }
+
+  function listItemHtml(it, durationText) {
+    return `<li class="event-item type-${it.type}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</li>`;
   }
 
   function renderItemsList(listEl, emptyEl, items) {
@@ -418,9 +460,16 @@
       return;
     }
     emptyEl.style.display = "none";
-    listEl.innerHTML = items
-      .map((it) => `<li class="event-item type-${it.type}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it)}</li>`)
-      .join("");
+
+    const mainItems = items.filter((it) => !isLongGoal(it));
+    const longGoals = items.filter(isLongGoal);
+
+    let html = mainItems.map((it) => listItemHtml(it)).join("");
+    if (longGoals.length > 0) {
+      html += `<li class="goal-section-divider">Ongoing goals</li>`;
+      html += longGoals.map((it) => listItemHtml(it, goalDurationText(it))).join("");
+    }
+    listEl.innerHTML = html;
   }
 
   function renderTodayPanel() {
@@ -440,7 +489,8 @@
   }
 
   function dayItemHtml(it) {
-    return `<div class="event-item compact type-${it.type}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it)}</div>`;
+    const durationText = isLongGoal(it) ? goalDurationText(it) : "";
+    return `<div class="event-item compact type-${it.type}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</div>`;
   }
 
   function renderDayView() {
@@ -573,6 +623,13 @@
 
   // ---------- Add-event modal ----------
   function resetAddForm(presetKey) {
+    state.editingId = null;
+    state.editingSource = null;
+    state.editingOriginalDate = null;
+    addModalTitle.textContent = "Add Event";
+    saveBtn.textContent = "Save";
+    typePicker.classList.remove("locked");
+
     state.selectedType = null;
     state.selectedRepeat = null;
     state.goalFrequency = "daily";
@@ -626,6 +683,14 @@
     cycleItemsEl.querySelectorAll(".cycle-row").forEach((row, i) => {
       row.querySelector(".cycle-index").textContent = i + 1;
     });
+  }
+
+  function selectType(type) {
+    typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.toggle("active", b.dataset.type === type));
+    state.selectedType = type;
+    state.selectedRepeat = null;
+    repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+    updateFieldsForType();
   }
 
   function updateFieldsForType() {
@@ -698,6 +763,84 @@
     modalBackdrop.classList.add("visible");
   }
 
+  function findRecordForItem(id, source) {
+    if (source === "routine") {
+      return state.data.routines.find((r) => r.id === id) || null;
+    }
+    const key = currentPanelKey();
+    const list = state.data.singleEvents[key] || [];
+    return list.find((ev) => ev.id === id) || null;
+  }
+
+  function prefillFormForEdit(item, record) {
+    selectType(item.type);
+
+    if (item.type === "event") {
+      if (item.source === "single") {
+        formDate.value = state.editingOriginalDate;
+        formTime.value = record.time || "";
+        formText.value = record.text;
+      } else {
+        formDate.value = record.startDate;
+        formTime.value = record.time || "";
+        formText.value = record.text;
+        record.days.forEach((d) => {
+          state.eventRepeatDays.add(d);
+          const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${d}"]`);
+          if (btn) btn.classList.add("active");
+        });
+        if (record.weeks) {
+          state.eventRepeatWeeks = record.weeks;
+          eventWeeksInput.value = record.weeks;
+        } else {
+          state.eventForever = true;
+          eventForeverBtn.classList.add("active");
+        }
+      }
+    } else if (item.type === "goal") {
+      formDate.value = record.startDate;
+      formText.value = record.text;
+      state.goalFrequency = record.repeat;
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.freq === record.repeat);
+      });
+      goalFreqHint.textContent = GOAL_FREQ_HINTS[record.repeat];
+    } else if (item.type === "routine") {
+      formDate.value = record.startDate;
+      repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.repeat === record.repeat);
+      });
+      state.selectedRepeat = record.repeat;
+      updateFieldsForType();
+      if (record.repeat === "cycle") {
+        cycleItemsEl.innerHTML = "";
+        record.items.forEach((val) => addCycleRow(val));
+        formTime.value = record.time || "";
+      } else {
+        formText.value = record.text;
+        formTime.value = record.time || "";
+      }
+      repeatHint.textContent = REPEAT_HINTS[record.repeat];
+    }
+
+    updateSaveEnabled();
+  }
+
+  function openEditModal(item) {
+    const record = findRecordForItem(item.id, item.source);
+    if (!record) return;
+    const originalDate = item.source === "single" ? currentPanelKey() : null;
+
+    openAddModal(currentPanelKey());
+    state.editingId = item.id;
+    state.editingSource = item.source;
+    state.editingOriginalDate = originalDate;
+    addModalTitle.textContent = `Edit ${TYPE_LABELS[item.type]}`;
+    saveBtn.textContent = "Save Changes";
+    typePicker.classList.add("locked");
+    prefillFormForEdit(item, record);
+  }
+
   function closeAddModal() {
     addModal.classList.remove("open");
     addModal.setAttribute("aria-hidden", "true");
@@ -753,6 +896,14 @@
     const type = state.selectedType;
     const key = formDate.value;
     if (!type || !key) return;
+
+    if (state.editingId) {
+      if (state.editingSource === "routine") {
+        deleteRoutine(state.editingId);
+      } else {
+        deleteSingleEvent(state.editingOriginalDate, state.editingId);
+      }
+    }
 
     if (type === "event") {
       const text = formText.value.trim();
@@ -963,6 +1114,14 @@
   multiDaySaveBtn.addEventListener("click", saveMultiDayEvents);
 
   function handleItemListClick(e) {
+    const editBtn = e.target.closest(".edit-btn");
+    if (editBtn) {
+      const { id, source } = editBtn.dataset;
+      const item = getItemsForDate(currentPanelKey()).find((it) => it.id === id && it.source === source);
+      if (item) openEditModal(item);
+      return;
+    }
+
     const completeBtn = e.target.closest(".complete-btn");
     if (completeBtn) {
       if (completeBtn.classList.contains("checked")) return;
@@ -1011,14 +1170,10 @@
   closeTodayPanelBtn.addEventListener("click", () => setTodayPanelHidden(true));
 
   typePicker.addEventListener("click", (e) => {
+    if (typePicker.classList.contains("locked")) return;
     const btn = e.target.closest(".type-btn");
     if (!btn) return;
-    typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    state.selectedType = btn.dataset.type;
-    state.selectedRepeat = null;
-    repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
-    updateFieldsForType();
+    selectType(btn.dataset.type);
   });
 
   goalFreqMode.addEventListener("click", (e) => {

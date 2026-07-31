@@ -370,21 +370,35 @@ body {
 }
 
 .day-chip {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   padding: 1px 5px;
   border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--item-color, var(--text));
 }
 
-.day-chip.type-event { background: var(--c-event-soft); color: var(--c-event); }
-.day-chip.type-routine { background: var(--c-routine-soft); color: var(--c-routine); }
-.day-chip.type-goal { background: var(--c-goal-soft); color: var(--c-goal); }
+.day-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.day-chip-dot.dot-event { background: var(--c-event); }
+.day-chip-dot.dot-routine { background: var(--c-routine); }
+.day-chip-dot.dot-goal { background: var(--c-goal); }
+
+.day-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .day-chip-more {
   font-size: 10px;
@@ -393,12 +407,8 @@ body {
 }
 
 .day-cell.today .day-chip {
-  color: var(--bg);
+  background: rgba(11, 11, 13, 0.32);
 }
-
-.day-cell.today .day-chip.type-event { background: var(--c-event); }
-.day-cell.today .day-chip.type-routine { background: var(--c-routine); }
-.day-cell.today .day-chip.type-goal { background: var(--c-goal); }
 
 .day-cell.today .day-chip-more {
   color: rgba(11, 11, 13, 0.6);
@@ -500,17 +510,60 @@ body {
   border-width: 0;
 }
 
-.event-item.type-event { --item-color: var(--c-event); --item-color-soft: var(--c-event-soft); }
-.event-item.type-routine { --item-color: var(--c-routine); --item-color-soft: var(--c-routine-soft); }
-.event-item.type-goal { --item-color: var(--c-goal); --item-color-soft: var(--c-goal-soft); }
+.event-item.type-event .event-badge { background: var(--c-event-soft); color: var(--c-event); }
+.event-item.type-routine .event-badge { background: var(--c-routine-soft); color: var(--c-routine); }
+.event-item.type-goal .event-badge { background: var(--c-goal-soft); color: var(--c-goal); }
 
 .event-item .event-badge {
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 700;
-  color: var(--item-color, var(--accent));
+  padding: 2px 7px;
+  border-radius: 999px;
   flex-shrink: 0;
+  width: fit-content;
+}
+
+.event-item .event-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.event-item .edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.event-item .edit-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.goal-section-divider {
+  list-style: none;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.goal-duration {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .event-item .event-time {
@@ -897,6 +950,11 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.type-picker.locked .type-btn {
+  pointer-events: none;
+  opacity: 0.55;
 }
 
 .type-btn,
