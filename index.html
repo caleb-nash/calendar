@@ -253,7 +253,12 @@
 
           <div class="field-group" id="colorPickerWrap" hidden>
             <span class="field-label">Color</span>
-            <div class="color-swatches" id="colorSwatches"></div>
+            <div class="color-picker-row">
+              <button type="button" class="color-swatch auto-swatch active" id="autoColorBtn">Auto</button>
+              <label class="custom-color-swatch" for="customColorInput">
+                <input type="color" id="customColorInput" value="#c8555f" />
+              </label>
+            </div>
           </div>
 
           <div class="modal-actions">

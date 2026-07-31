@@ -516,6 +516,15 @@ body {
 .event-item.type-routine .event-badge { background: var(--c-routine-soft); color: var(--c-routine); }
 .event-item.type-goal .event-badge { background: var(--c-goal-soft); color: var(--c-goal); }
 
+.event-item.custom-color .event-badge {
+  background: var(--item-color-soft);
+  color: var(--item-color);
+}
+
+.event-item.custom-color .event-text {
+  color: var(--item-color);
+}
+
 .event-item .event-badge {
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -1213,36 +1222,15 @@ body {
   color: var(--accent-strong);
 }
 
-.color-swatches {
+.color-picker-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
-}
-
-.color-swatch {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  padding: 0;
-  cursor: pointer;
-  background: var(--swatch-color, var(--surface-2));
-  transition: transform 0.15s var(--ease), border-color 0.15s var(--ease);
-}
-
-.color-swatch:hover {
-  transform: scale(1.1);
-}
-
-.color-swatch.active {
-  border-color: var(--text);
+  gap: 10px;
 }
 
 .auto-swatch {
   width: auto;
-  height: 30px;
+  height: 34px;
   border-radius: 999px;
   padding: 0 14px;
   background: var(--surface);
@@ -1252,12 +1240,54 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
+}
+
+.auto-swatch:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .auto-swatch.active {
   border-color: var(--accent);
   color: var(--accent-strong);
   background: var(--accent-soft);
+}
+
+.custom-color-swatch {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.custom-color-swatch:hover {
+  transform: scale(1.08);
+  border-color: var(--text-dim);
+}
+
+.custom-color-swatch input[type="color"] {
+  width: 150%;
+  height: 150%;
+  margin: -25%;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: none;
+}
+
+.custom-color-swatch input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.custom-color-swatch input[type="color"]::-webkit-color-swatch {
+  border: none;
 }
 
 .modal-actions {
@@ -1512,8 +1542,12 @@ body {
   border-radius: 999px;
   flex-shrink: 0;
   width: fit-content;
-  background: var(--c-goal-soft);
-  color: var(--c-goal);
+  background: var(--item-color-soft, var(--c-goal-soft));
+  color: var(--item-color, var(--c-goal));
+}
+
+.tracked-goal-card.custom-color .tracked-goal-name {
+  color: var(--item-color);
 }
 
 .tracked-goal-name {

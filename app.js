@@ -32,10 +32,8 @@
     editingId: null,
     editingSource: null,
     editingOriginalDate: null,
-    formColorHue: null,
+    formColor: null,
   };
-
-  const COLOR_HUES = [350, 25, 45, 120, 165, 200, 220, 260, 300, 330];
 
   // ---------- Elements ----------
   const monthTitleEl = document.getElementById("monthTitle");
@@ -117,7 +115,8 @@
   const cycleItemsEl = document.getElementById("cycleItems");
   const addCycleItemBtn = document.getElementById("addCycleItemBtn");
   const colorPickerWrap = document.getElementById("colorPickerWrap");
-  const colorSwatchesEl = document.getElementById("colorSwatches");
+  const autoColorBtn = document.getElementById("autoColorBtn");
+  const customColorInput = document.getElementById("customColorInput");
   const deleteItemBtn = document.getElementById("deleteItemBtn");
   const saveBtn = document.getElementById("saveBtn");
 
@@ -244,7 +243,20 @@
     goal: { base: 350, spread: 30 },
   };
 
+  function hslToHex(h, s, l) {
+    s /= 100;
+    l /= 100;
+    const k = (n) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const toHex = (x) => Math.round(255 * x).toString(16).padStart(2, "0");
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  }
+
   function itemAccentStyle(it) {
+    if (typeof it.color === "string" && it.color) {
+      return `--item-color: ${it.color}; --item-color-soft: ${it.color}38;`;
+    }
     if (typeof it.color === "number") {
       return `--item-color: hsl(${it.color}, 55%, 46%); --item-color-soft: hsla(${it.color}, 55%, 46%, 0.22);`;
     }
@@ -253,6 +265,10 @@
     const hue = (cfg.base + (n % cfg.spread)) % 360;
     const lightness = 42 + (n % 10);
     return `--item-color: hsl(${hue}, 55%, ${lightness}%); --item-color-soft: hsla(${hue}, 55%, ${lightness}%, 0.22);`;
+  }
+
+  function hasCustomColor(it) {
+    return (typeof it.color === "string" && it.color) || typeof it.color === "number";
   }
 
   function goalDurationText(it) {
@@ -497,7 +513,8 @@
   }
 
   function listItemHtml(it, durationText) {
-    return `<li class="event-item type-${it.type}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</li>`;
+    const cls = `event-item type-${it.type}${hasCustomColor(it) ? " custom-color" : ""}`;
+    return `<li class="${cls}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</li>`;
   }
 
   function renderItemsList(listEl, emptyEl, items) {
@@ -537,7 +554,8 @@
 
   function dayItemHtml(it) {
     const durationText = isLongGoal(it) ? goalDurationText(it) : "";
-    return `<div class="event-item compact type-${it.type}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</div>`;
+    const cls = `event-item compact type-${it.type}${hasCustomColor(it) ? " custom-color" : ""}`;
+    return `<div class="${cls}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</div>`;
   }
 
   function renderDayView() {
@@ -640,7 +658,7 @@
     }
 
     return `
-      <div class="tracked-goal-card" style="${itemAccentStyle({ type: "goal", text: routine.text, color: routine.color })}">
+      <div class="tracked-goal-card${hasCustomColor(routine) ? " custom-color" : ""}" style="${itemAccentStyle({ type: "goal", text: routine.text, color: routine.color })}">
         <div class="tracked-goal-head">
           <span class="event-badge">Goal</span>
           <span class="tracked-goal-name">${escapeHtml(routine.text)}</span>
@@ -753,19 +771,9 @@
   }
 
   // ---------- Add-event modal ----------
-  function buildColorSwatches() {
-    const autoBtn = `<button type="button" class="color-swatch auto-swatch active" data-hue="">Auto</button>`;
-    const hueBtns = COLOR_HUES.map(
-      (h) => `<button type="button" class="color-swatch" data-hue="${h}" style="--swatch-color: hsl(${h}, 55%, 46%)" aria-label="Custom color"></button>`
-    ).join("");
-    colorSwatchesEl.innerHTML = autoBtn + hueBtns;
-  }
-
-  function setActiveColorSwatch(hue) {
-    colorSwatchesEl.querySelectorAll(".color-swatch").forEach((b) => {
-      const active = b.dataset.hue === "" ? hue === null : Number(b.dataset.hue) === hue;
-      b.classList.toggle("active", active);
-    });
+  function setColorPickerUI(hex) {
+    autoColorBtn.classList.toggle("active", !hex);
+    customColorInput.value = hex || "#c8555f";
   }
 
   function resetAddForm(presetKey) {
@@ -796,8 +804,8 @@
     dailyTaskWrap.hidden = true;
     goalUntilDateWrap.hidden = true;
     goalUntilCompletionsWrap.hidden = true;
-    state.formColorHue = null;
-    setActiveColorSwatch(null);
+    state.formColor = null;
+    setColorPickerUI(null);
     colorPickerWrap.hidden = true;
     deleteItemBtn.hidden = true;
     cycleItemsEl.innerHTML = "";
@@ -1028,8 +1036,14 @@
       repeatHint.textContent = REPEAT_HINTS[record.repeat];
     }
 
-    state.formColorHue = typeof record.color === "number" ? record.color : null;
-    setActiveColorSwatch(state.formColorHue);
+    if (typeof record.color === "string" && record.color) {
+      state.formColor = record.color;
+    } else if (typeof record.color === "number") {
+      state.formColor = hslToHex(record.color, 55, 46);
+    } else {
+      state.formColor = null;
+    }
+    setColorPickerUI(state.formColor);
     deleteItemBtn.hidden = false;
 
     updateSaveEnabled();
@@ -1132,7 +1146,7 @@
           time: formTime.value || null,
           weeks: state.eventForever ? null : state.eventRepeatWeeks,
           text,
-          color: state.formColorHue,
+          color: state.formColor,
         });
       } else {
         if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
@@ -1141,7 +1155,7 @@
           type,
           time: formTime.value || null,
           text,
-          color: state.formColorHue,
+          color: state.formColor,
         });
       }
     } else if (type === "goal") {
@@ -1160,7 +1174,7 @@
         time: null,
         text,
         tracked,
-        color: state.formColorHue,
+        color: state.formColor,
       };
       if (freq === "untilDate") record.untilDate = goalUntilDateInput.value;
       if (freq === "untilCompletions") record.targetCompletions = parseInt(goalUntilCompletionsInput.value, 10);
@@ -1184,7 +1198,7 @@
           startDate: key,
           time: formTime.value || null,
           items,
-          color: state.formColorHue,
+          color: state.formColor,
         });
       } else {
         const text = formText.value.trim();
@@ -1196,7 +1210,7 @@
           startDate: key,
           time: formTime.value || null,
           text,
-          color: state.formColorHue,
+          color: state.formColor,
         });
       }
     }
@@ -1511,11 +1525,14 @@
     updateSaveEnabled();
   });
 
-  colorSwatchesEl.addEventListener("click", (e) => {
-    const btn = e.target.closest(".color-swatch");
-    if (!btn) return;
-    state.formColorHue = btn.dataset.hue === "" ? null : Number(btn.dataset.hue);
-    setActiveColorSwatch(state.formColorHue);
+  autoColorBtn.addEventListener("click", () => {
+    state.formColor = null;
+    setColorPickerUI(null);
+  });
+
+  customColorInput.addEventListener("input", () => {
+    state.formColor = customColorInput.value;
+    autoColorBtn.classList.remove("active");
   });
 
   deleteItemBtn.addEventListener("click", () => {
@@ -1561,7 +1578,6 @@
   });
 
   // ---------- Init ----------
-  buildColorSwatches();
   setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
   renderWeekdaysRow();
   renderTodayPanel();
