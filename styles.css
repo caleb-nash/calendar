@@ -479,6 +479,7 @@ body {
   padding: 0;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -495,8 +496,9 @@ body {
   padding: 10px 12px;
   animation: fadeIn 0.2s var(--ease);
   transition: opacity 0.25s var(--ease), transform 0.25s var(--ease), max-height 0.25s var(--ease), margin 0.25s var(--ease), padding 0.25s var(--ease);
-  max-height: 80px;
+  max-height: 240px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .event-item.removing {
