@@ -1118,6 +1118,42 @@ body {
   background: var(--c-goal-soft);
 }
 
+.favor-picker .seg-btn[data-favor="none"].active {
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.favor-picker .seg-btn[data-favor="favor"].active {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.favor-picker .seg-btn[data-favor="unfavor"].active {
+  border-color: var(--text-faint);
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+
+.event-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.favor-star {
+  color: var(--accent-strong);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.favor-down {
+  color: var(--text-faint);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
 .goal-sub-field {
   margin-top: 4px;
   margin-bottom: 10px;

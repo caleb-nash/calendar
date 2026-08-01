@@ -33,6 +33,7 @@
     editingSource: null,
     editingOriginalDate: null,
     formColor: null,
+    formFavor: null,
   };
 
   // ---------- Elements ----------
@@ -117,6 +118,8 @@
   const colorPickerWrap = document.getElementById("colorPickerWrap");
   const autoColorBtn = document.getElementById("autoColorBtn");
   const customColorInput = document.getElementById("customColorInput");
+  const favorWrap = document.getElementById("favorWrap");
+  const favorPicker = document.getElementById("favorPicker");
   const deleteItemBtn = document.getElementById("deleteItemBtn");
   const saveBtn = document.getElementById("saveBtn");
 
@@ -278,6 +281,12 @@
     return (typeof it.color === "string" && it.color) || typeof it.color === "number";
   }
 
+  function itemMonthRank(it) {
+    if (it.favor === "favor") return 0;
+    if (it.favor === "unfavor") return 3;
+    return it.type === "event" ? 1 : 2;
+  }
+
   function goalDurationText(it) {
     if (it.repeat === "untilCompletions") return "Tracked goal — until target completions";
     if (!it.endDate) return "";
@@ -347,7 +356,7 @@
   function getItemsForDate(key) {
     const items = [];
     (state.data.singleEvents[key] || []).forEach((ev) => {
-      items.push({ id: ev.id, type: ev.type, time: ev.time, text: ev.text, source: "single", color: ev.color });
+      items.push({ id: ev.id, type: ev.type, time: ev.time, text: ev.text, source: "single", color: ev.color, favor: ev.favor });
     });
     state.data.routines.forEach((r) => {
       const occ = getRoutineOccurrence(r, key);
@@ -364,6 +373,7 @@
           tracked,
           completedToday: tracked && Array.isArray(r.completedDates) && r.completedDates.includes(key),
           color: r.color,
+          favor: r.favor,
         });
       }
     });
@@ -426,7 +436,7 @@
       if (state.multiDayPicking && state.multiDaySelectedDates.has(key)) classes.push("multi-picked");
 
       const maxChips = 3;
-      const prioritizedItems = [...dayItems].sort((a, b) => (a.type === "event" ? 0 : 1) - (b.type === "event" ? 0 : 1));
+      const prioritizedItems = [...dayItems].sort((a, b) => itemMonthRank(a) - itemMonthRank(b));
       const visibleItems = prioritizedItems.slice(0, maxChips);
       const extraCount = dayItems.length - visibleItems.length;
       const chipsHtml =
@@ -497,7 +507,11 @@
   function itemInnerHtml(it, durationText) {
     return `
       <div class="event-main">
-        <span class="event-badge">${TYPE_LABELS[it.type]}</span>
+        <div class="event-meta-row">
+          <span class="event-badge">${TYPE_LABELS[it.type]}</span>
+          ${it.favor === "favor" ? `<span class="favor-star" title="Favorited — shows first in month view">&#9733;</span>` : ""}
+          ${it.favor === "unfavor" ? `<span class="favor-down" title="Not favorited — shows last in month view">&#9660;</span>` : ""}
+        </div>
         <span class="event-text">${escapeHtml(it.text)}</span>
         ${durationText ? `<span class="goal-duration">${escapeHtml(durationText)}</span>` : ""}
       </div>
@@ -838,6 +852,12 @@
     customColorInput.value = hex || "#c8555f";
   }
 
+  function setFavorPickerUI(favor) {
+    favorPicker.querySelectorAll(".seg-btn[data-favor]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.favor === (favor || "none"));
+    });
+  }
+
   function resetAddForm(presetKey) {
     state.editingId = null;
     state.editingSource = null;
@@ -869,6 +889,9 @@
     state.formColor = null;
     setColorPickerUI(null);
     colorPickerWrap.hidden = true;
+    state.formFavor = null;
+    setFavorPickerUI(null);
+    favorWrap.hidden = true;
     deleteItemBtn.hidden = true;
     cycleItemsEl.innerHTML = "";
     addCycleRow();
@@ -944,6 +967,7 @@
     multiDayBtn.disabled = type !== "event";
     trackedGoalWrap.hidden = type !== "goal";
     colorPickerWrap.hidden = !type;
+    favorWrap.hidden = !type;
     if (type !== "goal") {
       dailyTaskWrap.hidden = true;
       goalUntilDateWrap.hidden = true;
@@ -1106,6 +1130,10 @@
       state.formColor = null;
     }
     setColorPickerUI(state.formColor);
+
+    state.formFavor = record.favor || null;
+    setFavorPickerUI(state.formFavor);
+
     deleteItemBtn.hidden = false;
 
     updateSaveEnabled();
@@ -1235,6 +1263,7 @@
           weeks: state.eventForever ? null : state.eventRepeatWeeks,
           text,
           color: state.formColor,
+          favor: state.formFavor,
         });
       } else {
         if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
@@ -1244,6 +1273,7 @@
           time: formTime.value || null,
           text,
           color: state.formColor,
+          favor: state.formFavor,
           groupId: existingGroupId || undefined,
         });
       }
@@ -1264,6 +1294,7 @@
         text,
         tracked,
         color: state.formColor,
+        favor: state.formFavor,
       };
       if (freq === "untilDate") record.untilDate = goalUntilDateInput.value;
       if (freq === "untilCompletions") record.targetCompletions = parseInt(goalUntilCompletionsInput.value, 10);
@@ -1288,6 +1319,7 @@
           time: formTime.value || null,
           items,
           color: state.formColor,
+          favor: state.formFavor,
         });
       } else {
         const text = formText.value.trim();
@@ -1300,6 +1332,7 @@
           time: formTime.value || null,
           text,
           color: state.formColor,
+          favor: state.formFavor,
         });
       }
     }
@@ -1639,6 +1672,13 @@
   customColorInput.addEventListener("input", () => {
     state.formColor = customColorInput.value;
     autoColorBtn.classList.remove("active");
+  });
+
+  favorPicker.addEventListener("click", (e) => {
+    const btn = e.target.closest(".seg-btn");
+    if (!btn) return;
+    state.formFavor = btn.dataset.favor === "none" ? null : btn.dataset.favor;
+    setFavorPickerUI(state.formFavor);
   });
 
   deleteItemBtn.addEventListener("click", () => {
