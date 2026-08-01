@@ -127,6 +127,13 @@
   const multiDayCancelBtn = document.getElementById("multiDayCancelBtn");
   const multiDaySaveBtn = document.getElementById("multiDaySaveBtn");
 
+  const groupPromptBackdrop = document.getElementById("groupPromptBackdrop");
+  const groupPromptModal = document.getElementById("groupPromptModal");
+  const groupPromptMessage = document.getElementById("groupPromptMessage");
+  const groupPromptCancelBtn = document.getElementById("groupPromptCancelBtn");
+  const groupPromptThisBtn = document.getElementById("groupPromptThisBtn");
+  const groupPromptAllBtn = document.getElementById("groupPromptAllBtn");
+
   const REPEAT_HINTS = {
     daily: "Repeats every single day starting from the date above.",
     weekly: `Repeats every week on the same weekday as the date above.`,
@@ -699,6 +706,61 @@
     saveData();
   }
 
+  function deleteAllInGroup(groupId) {
+    Object.keys(state.data.singleEvents).forEach((key) => {
+      state.data.singleEvents[key] = state.data.singleEvents[key].filter((ev) => ev.groupId !== groupId);
+      if (state.data.singleEvents[key].length === 0) delete state.data.singleEvents[key];
+    });
+    saveData();
+  }
+
+  function applyGroupColorTimeSync(groupId, color, time) {
+    Object.keys(state.data.singleEvents).forEach((key) => {
+      state.data.singleEvents[key].forEach((ev) => {
+        if (ev.groupId === groupId) {
+          ev.color = color;
+          ev.time = time;
+        }
+      });
+    });
+    saveData();
+  }
+
+  function renderAllViews() {
+    renderMonth();
+    renderTodayPanel();
+    renderDayView();
+    renderTrackedGoalsView();
+  }
+
+  function showGroupPrompt(message, onThisOnly, onAll) {
+    groupPromptMessage.textContent = message;
+    groupPromptModal.classList.add("open");
+    groupPromptModal.setAttribute("aria-hidden", "false");
+    groupPromptBackdrop.classList.add("visible");
+
+    function cleanup() {
+      groupPromptModal.classList.remove("open");
+      groupPromptModal.setAttribute("aria-hidden", "true");
+      groupPromptBackdrop.classList.remove("visible");
+      groupPromptThisBtn.onclick = null;
+      groupPromptAllBtn.onclick = null;
+      groupPromptCancelBtn.onclick = null;
+      groupPromptBackdrop.onclick = null;
+    }
+
+    groupPromptThisBtn.onclick = () => {
+      cleanup();
+      onThisOnly();
+    };
+    groupPromptAllBtn.onclick = () => {
+      cleanup();
+      onAll();
+    };
+    groupPromptCancelBtn.onclick = () => cleanup();
+    groupPromptBackdrop.onclick = () => cleanup();
+  }
+
   // ---------- Mini calendar (date picker) ----------
   function buildMiniCalCells(y, m, selectedKey) {
     const firstOfMonth = new Date(y, m, 1);
@@ -1098,6 +1160,7 @@
   function saveMultiDayEvents() {
     const text = multiDayTextInput.value.trim();
     if (!text) return;
+    const groupId = state.multiDaySelectedDates.size > 1 ? uid() : undefined;
     state.multiDaySelectedDates.forEach((key) => {
       if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
       state.data.singleEvents[key].push({
@@ -1105,13 +1168,12 @@
         type: "event",
         time: state.multiDayTime,
         text,
+        groupId,
       });
     });
     saveData();
     exitMultiDayPicking();
-    renderMonth();
-    renderTodayPanel();
-    renderDayView();
+    renderAllViews();
   }
 
   function submitAddForm(e) {
@@ -1120,11 +1182,37 @@
     const key = formDate.value;
     if (!type || !key) return;
 
+    if (type === "event" && state.editingSource === "single" && state.editingId) {
+      const existing = findRecordForItem(state.editingId, state.editingSource);
+      if (existing && existing.groupId) {
+        const newColor = state.formColor || null;
+        const newTime = formTime.value || null;
+        const colorChanged = (existing.color || null) !== newColor;
+        const timeChanged = (existing.time || null) !== newTime;
+        if (colorChanged || timeChanged) {
+          showGroupPrompt(
+            "This event repeats across multiple days. Apply this change to just today, or to all of them?",
+            () => performSubmit(type, key),
+            () => performSubmit(type, key, existing.groupId)
+          );
+          return;
+        }
+      }
+    }
+
+    performSubmit(type, key);
+  }
+
+  function performSubmit(type, key, syncGroupId) {
     let preservedCompletedDates = null;
+    let existingGroupId = null;
     if (state.editingId) {
       const existing = findRecordForItem(state.editingId, state.editingSource);
-      if (existing && existing.type === "goal" && Array.isArray(existing.completedDates)) {
-        preservedCompletedDates = existing.completedDates;
+      if (existing) {
+        if (existing.type === "goal" && Array.isArray(existing.completedDates)) {
+          preservedCompletedDates = existing.completedDates;
+        }
+        if (existing.groupId) existingGroupId = existing.groupId;
       }
       if (state.editingSource === "routine") {
         deleteRoutine(state.editingId);
@@ -1156,6 +1244,7 @@
           time: formTime.value || null,
           text,
           color: state.formColor,
+          groupId: existingGroupId || undefined,
         });
       }
     } else if (type === "goal") {
@@ -1216,11 +1305,13 @@
     }
 
     saveData();
+
+    if (syncGroupId) {
+      applyGroupColorTimeSync(syncGroupId, state.formColor || null, formTime.value || null);
+    }
+
     closeAddModal();
-    renderMonth();
-    renderTodayPanel();
-    renderDayView();
-    renderTrackedGoalsView();
+    renderAllViews();
   }
 
   // ---------- Event listeners ----------
@@ -1416,13 +1507,28 @@
       const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
       if (!ok) return;
       deleteRoutine(id);
-    } else {
-      deleteSingleEvent(currentPanelKey(), id);
+      renderAllViews();
+      return;
     }
-    renderTodayPanel();
-    renderMonth();
-    renderDayView();
-    renderTrackedGoalsView();
+
+    const record = findRecordForItem(id, source);
+    if (record && record.groupId) {
+      showGroupPrompt(
+        "This event repeats across multiple days. Delete just today, or all of them?",
+        () => {
+          deleteSingleEvent(currentPanelKey(), id);
+          renderAllViews();
+        },
+        () => {
+          deleteAllInGroup(record.groupId);
+          renderAllViews();
+        }
+      );
+      return;
+    }
+
+    deleteSingleEvent(currentPanelKey(), id);
+    renderAllViews();
   }
 
   todayEventListEl.addEventListener("click", handleItemListClick);
@@ -1541,14 +1647,32 @@
       const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
       if (!ok) return;
       deleteRoutine(state.editingId);
-    } else {
-      deleteSingleEvent(state.editingOriginalDate, state.editingId);
+      closeAddModal();
+      renderAllViews();
+      return;
     }
+
+    const record = findRecordForItem(state.editingId, state.editingSource);
+    if (record && record.groupId) {
+      showGroupPrompt(
+        "This event repeats across multiple days. Delete just today, or all of them?",
+        () => {
+          deleteSingleEvent(state.editingOriginalDate, state.editingId);
+          closeAddModal();
+          renderAllViews();
+        },
+        () => {
+          deleteAllInGroup(record.groupId);
+          closeAddModal();
+          renderAllViews();
+        }
+      );
+      return;
+    }
+
+    deleteSingleEvent(state.editingOriginalDate, state.editingId);
     closeAddModal();
-    renderMonth();
-    renderTodayPanel();
-    renderDayView();
-    renderTrackedGoalsView();
+    renderAllViews();
   });
 
   cycleItemsEl.addEventListener("input", updateSaveEnabled);
@@ -1562,7 +1686,9 @@
     const typing = tag === "INPUT" || tag === "TEXTAREA";
 
     if (e.key === "Escape") {
-      if (miniCalendar.classList.contains("open")) {
+      if (groupPromptModal.classList.contains("open")) {
+        groupPromptCancelBtn.click();
+      } else if (miniCalendar.classList.contains("open")) {
         closeMiniCalendar();
       } else if (addModal.classList.contains("open")) {
         closeAddModal();

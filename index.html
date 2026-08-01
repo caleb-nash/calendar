@@ -278,6 +278,17 @@
         <button type="button" class="multiday-save-btn" id="multiDaySaveBtn" disabled>Save</button>
       </div>
     </div>
+
+    <!-- Multi-day group action prompt -->
+    <div class="modal-backdrop" id="groupPromptBackdrop"></div>
+    <div class="group-prompt-modal" id="groupPromptModal" role="alertdialog" aria-hidden="true">
+      <p class="group-prompt-message" id="groupPromptMessage"></p>
+      <div class="group-prompt-actions">
+        <button type="button" class="group-prompt-cancel-btn" id="groupPromptCancelBtn">Cancel</button>
+        <button type="button" class="group-prompt-this-btn" id="groupPromptThisBtn">Just this day</button>
+        <button type="button" class="group-prompt-all-btn" id="groupPromptAllBtn">All days</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

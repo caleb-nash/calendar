@@ -1585,3 +1585,129 @@ body {
   font-size: 12px;
   color: var(--text-faint);
 }
+
+/* ---------- Custom scrollbars ---------- */
+.event-list,
+.day-view-allday,
+.day-view-body,
+.add-modal,
+.tracked-goals-card,
+.tracked-goals-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.event-list::-webkit-scrollbar,
+.day-view-allday::-webkit-scrollbar,
+.day-view-body::-webkit-scrollbar,
+.add-modal::-webkit-scrollbar,
+.tracked-goals-card::-webkit-scrollbar,
+.tracked-goals-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.event-list::-webkit-scrollbar-track,
+.day-view-allday::-webkit-scrollbar-track,
+.day-view-body::-webkit-scrollbar-track,
+.add-modal::-webkit-scrollbar-track,
+.tracked-goals-card::-webkit-scrollbar-track,
+.tracked-goals-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.event-list::-webkit-scrollbar-thumb,
+.day-view-allday::-webkit-scrollbar-thumb,
+.day-view-body::-webkit-scrollbar-thumb,
+.add-modal::-webkit-scrollbar-thumb,
+.tracked-goals-card::-webkit-scrollbar-thumb,
+.tracked-goals-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.event-list:hover::-webkit-scrollbar-thumb,
+.day-view-allday:hover::-webkit-scrollbar-thumb,
+.day-view-body:hover::-webkit-scrollbar-thumb,
+.add-modal:hover::-webkit-scrollbar-thumb,
+.tracked-goals-card:hover::-webkit-scrollbar-thumb,
+.tracked-goals-body:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* ---------- Group action prompt ---------- */
+.group-prompt-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(380px, calc(100vw - 32px));
+  background: #16161a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 80;
+  padding: 22px;
+  transform: translate(-50%, -48%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease), transform 0.25s var(--ease);
+}
+
+.group-prompt-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.group-prompt-message {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.group-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.group-prompt-actions button {
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.group-prompt-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.group-prompt-cancel-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.group-prompt-this-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.group-prompt-this-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.group-prompt-all-btn {
+  background: var(--accent);
+  border: none;
+  color: var(--bg);
+}
+
+.group-prompt-all-btn:hover {
+  background: var(--accent-strong);
+}
