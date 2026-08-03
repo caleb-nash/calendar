@@ -695,7 +695,21 @@
     `;
   }
 
+  function pruneFinishedTrackedGoals() {
+    const before = state.data.routines.length;
+    state.data.routines = state.data.routines.filter((r) => {
+      if (r.type === "goal" && r.tracked && r.repeat === "untilCompletions") {
+        const done = Array.isArray(r.completedDates) ? r.completedDates.length : 0;
+        const target = r.targetCompletions || 1;
+        return done < target;
+      }
+      return true;
+    });
+    if (state.data.routines.length !== before) saveData();
+  }
+
   function renderTrackedGoalsView() {
+    pruneFinishedTrackedGoals();
     const trackedGoals = state.data.routines.filter((r) => r.type === "goal" && r.tracked);
     if (trackedGoals.length === 0) {
       trackedGoalsBody.innerHTML = "";
@@ -745,6 +759,7 @@
   }
 
   function renderAllViews() {
+    pruneFinishedTrackedGoals();
     renderMonth();
     renderTodayPanel();
     renderDayView();
@@ -1509,16 +1524,19 @@
 
     const completeBtn = e.target.closest(".complete-btn");
     if (completeBtn) {
-      if (completeBtn.classList.contains("checked")) return;
       const { id, source } = completeBtn.dataset;
 
       if (completeBtn.dataset.tracked === "1") {
-        completeBtn.classList.add("checked");
         const routine = state.data.routines.find((r) => r.id === id);
         if (routine) {
           if (!Array.isArray(routine.completedDates)) routine.completedDates = [];
           const key = currentPanelKey();
-          if (!routine.completedDates.includes(key)) routine.completedDates.push(key);
+          const idx = routine.completedDates.indexOf(key);
+          if (idx === -1) {
+            routine.completedDates.push(key);
+          } else {
+            routine.completedDates.splice(idx, 1);
+          }
           if (routine.repeat === "untilCompletions" && routine.completedDates.length >= (routine.targetCompletions || 1)) {
             deleteRoutine(id);
             renderAllViews();
@@ -1526,10 +1544,13 @@
           }
           saveData();
         }
+        renderTodayPanel();
+        renderDayView();
         renderTrackedGoalsView();
         return;
       }
 
+      if (completeBtn.classList.contains("checked")) return;
       completeBtn.classList.add("checked");
       const item = completeBtn.closest(".event-item");
       setTimeout(() => {
@@ -1759,6 +1780,7 @@
   });
 
   // ---------- Init ----------
+  pruneFinishedTrackedGoals();
   setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
   renderWeekdaysRow();
   renderTodayPanel();
