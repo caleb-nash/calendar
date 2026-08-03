@@ -1,0 +1,1793 @@
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "calendar_data_v2";
+  const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const TYPE_LABELS = { event: "Event", goal: "Goal", routine: "Routine" };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const state = {
+    viewYear: today.getFullYear(),
+    viewMonth: today.getMonth(),
+    selectedDate: null,
+    data: loadData(),
+    selectedType: null,
+    selectedRepeat: null,
+    goalFrequency: "daily",
+    eventRepeatDays: new Set(),
+    eventForever: false,
+    eventRepeatWeeks: null,
+    multiDayPicking: false,
+    multiDayTime: null,
+    multiDaySelectedDates: new Set(),
+    miniCalYear: today.getFullYear(),
+    miniCalMonth: today.getMonth(),
+    viewMode: "day",
+    sidebarCalYear: today.getFullYear(),
+    sidebarCalMonth: today.getMonth(),
+    editingId: null,
+    editingSource: null,
+    editingOriginalDate: null,
+    formColor: null,
+    formPriority: 0,
+  };
+
+  // ---------- Elements ----------
+  const monthTitleEl = document.getElementById("monthTitle");
+  const daysGridEl = document.getElementById("daysGrid");
+  const weekdaysRowEl = document.getElementById("weekdaysRow");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const todayBtn = document.getElementById("todayBtn");
+  const addEventBtn = document.getElementById("addEventBtn");
+  const exportDataBtn = document.getElementById("exportDataBtn");
+  const importDataBtn = document.getElementById("importDataBtn");
+  const importFileInput = document.getElementById("importFileInput");
+  const viewToggleBtn = document.getElementById("viewToggleBtn");
+  const trackedGoalsToggleBtn = document.getElementById("trackedGoalsToggleBtn");
+  const monthView = document.getElementById("monthView");
+  const dayView = document.getElementById("dayView");
+  const trackedGoalsView = document.getElementById("trackedGoalsView");
+  const trackedGoalsBody = document.getElementById("trackedGoalsBody");
+  const trackedGoalsEmptyState = document.getElementById("trackedGoalsEmptyState");
+  const dayPrevBtn = document.getElementById("dayPrevBtn");
+  const dayNextBtn = document.getElementById("dayNextBtn");
+  const dayTodayBtn = document.getElementById("dayTodayBtn");
+  const dayViewTitle = document.getElementById("dayViewTitle");
+  const dayViewAllDay = document.getElementById("dayViewAllDay");
+  const dayViewTimeline = document.getElementById("dayViewTimeline");
+
+  const todayPanel = document.getElementById("todayPanel");
+  const toggleTodayPanelBtn = document.getElementById("toggleTodayPanelBtn");
+  const closeTodayPanelBtn = document.getElementById("closeTodayPanelBtn");
+  const todayPanelAddBtn = document.getElementById("todayPanelAddBtn");
+  const todayPanelLabel = document.getElementById("todayPanelLabel");
+  const todayPanelDate = document.getElementById("todayPanelDate");
+  const todayEventListEl = document.getElementById("todayEventList");
+  const todayEmptyStateEl = document.getElementById("todayEmptyState");
+  const sidebarCalPrev = document.getElementById("sidebarCalPrev");
+  const sidebarCalNext = document.getElementById("sidebarCalNext");
+  const sidebarCalTitle = document.getElementById("sidebarCalTitle");
+  const sidebarCalGrid = document.getElementById("sidebarCalGrid");
+  const TODAY_PANEL_KEY = "calendar_today_panel_hidden";
+
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const addModal = document.getElementById("addModal");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const addForm = document.getElementById("addForm");
+  const addModalTitle = document.getElementById("addModalTitle");
+  const formDate = document.getElementById("formDate");
+  const miniCalToggle = document.getElementById("miniCalToggle");
+  const miniCalendar = document.getElementById("miniCalendar");
+  const miniCalTitle = document.getElementById("miniCalTitle");
+  const miniCalGrid = document.getElementById("miniCalGrid");
+  const miniCalPrev = document.getElementById("miniCalPrev");
+  const miniCalNext = document.getElementById("miniCalNext");
+  const typePicker = document.getElementById("typePicker");
+  const repeatModeGroup = document.getElementById("repeatModeGroup");
+  const repeatModeEl = document.getElementById("repeatMode");
+  const repeatHint = document.getElementById("repeatHint");
+  const eventRepeatGroup = document.getElementById("eventRepeatGroup");
+  const eventWeekdayPicker = document.getElementById("eventWeekdayPicker");
+  const eventForeverBtn = document.getElementById("eventForeverBtn");
+  const eventWeeksInput = document.getElementById("eventWeeksInput");
+  const timeFieldWrap = document.getElementById("timeFieldWrap");
+  const formTime = document.getElementById("formTime");
+  const goalRepeatGroup = document.getElementById("goalRepeatGroup");
+  const goalFreqMode = document.getElementById("goalFreqMode");
+  const goalFreqHint = document.getElementById("goalFreqHint");
+  const untilCompleteBtn = document.getElementById("untilCompleteBtn");
+  const untilCompletionsBtn = document.getElementById("untilCompletionsBtn");
+  const goalUntilDateWrap = document.getElementById("goalUntilDateWrap");
+  const goalUntilDateInput = document.getElementById("goalUntilDateInput");
+  const goalUntilCompletionsWrap = document.getElementById("goalUntilCompletionsWrap");
+  const goalUntilCompletionsInput = document.getElementById("goalUntilCompletionsInput");
+  const singleTextWrap = document.getElementById("singleTextWrap");
+  const singleTextLabel = document.getElementById("singleTextLabel");
+  const formText = document.getElementById("formText");
+  const trackedGoalWrap = document.getElementById("trackedGoalWrap");
+  const trackedGoalCheckbox = document.getElementById("trackedGoalCheckbox");
+  const dailyTaskWrap = document.getElementById("dailyTaskWrap");
+  const formDailyTask = document.getElementById("formDailyTask");
+  const cycleFieldWrap = document.getElementById("cycleFieldWrap");
+  const cycleItemsEl = document.getElementById("cycleItems");
+  const addCycleItemBtn = document.getElementById("addCycleItemBtn");
+  const colorPickerWrap = document.getElementById("colorPickerWrap");
+  const autoColorBtn = document.getElementById("autoColorBtn");
+  const customColorInput = document.getElementById("customColorInput");
+  const favorWrap = document.getElementById("favorWrap");
+  const favorSlider = document.getElementById("favorSlider");
+  const favorValueLabel = document.getElementById("favorValueLabel");
+  const deleteItemBtn = document.getElementById("deleteItemBtn");
+  const saveBtn = document.getElementById("saveBtn");
+
+  const multiDayBtn = document.getElementById("multiDayBtn");
+  const multiDayBar = document.getElementById("multiDayBar");
+  const multiDayTextInput = document.getElementById("multiDayTextInput");
+  const multiDayCount = document.getElementById("multiDayCount");
+  const multiDayCancelBtn = document.getElementById("multiDayCancelBtn");
+  const multiDaySaveBtn = document.getElementById("multiDaySaveBtn");
+
+  const groupPromptBackdrop = document.getElementById("groupPromptBackdrop");
+  const groupPromptModal = document.getElementById("groupPromptModal");
+  const groupPromptMessage = document.getElementById("groupPromptMessage");
+  const groupPromptCancelBtn = document.getElementById("groupPromptCancelBtn");
+  const groupPromptThisBtn = document.getElementById("groupPromptThisBtn");
+  const groupPromptAllBtn = document.getElementById("groupPromptAllBtn");
+
+  const REPEAT_HINTS = {
+    daily: "Repeats every single day starting from the date above.",
+    weekly: `Repeats every week on the same weekday as the date above.`,
+    cycle: "Add the sequence in order (e.g. Push, Pull, Legs). It repeats forever, one step per day, starting from the date above.",
+  };
+
+  const GOAL_FREQ_HINTS = {
+    daily: "Stays through the rest of the day, starting from the date above.",
+    weekly: "Stays through the rest of that week (until Saturday), starting from the date above.",
+    monthly: "Stays through the rest of that month, starting from the date above.",
+    yearly: "Stays through the rest of that year, starting from the date above.",
+    untilDate: "Stays every day until the date you pick below.",
+    untilComplete: "Stays every day, with no end date, until you mark it complete.",
+    untilCompletions: "Stays every day until you reach the target number of completions below.",
+  };
+
+  // ---------- Storage ----------
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return {
+        singleEvents: (parsed && parsed.singleEvents) || {},
+        routines: (parsed && parsed.routines) || [],
+      };
+    } catch (e) {
+      return { singleEvents: {}, routines: [] };
+    }
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `calendar-backup-${todayKey()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(reader.result);
+      } catch (e) {
+        window.alert("That file isn't valid JSON.");
+        return;
+      }
+      if (!parsed || typeof parsed !== "object" || !parsed.singleEvents || !Array.isArray(parsed.routines)) {
+        window.alert("That doesn't look like a calendar backup file.");
+        return;
+      }
+      state.data = {
+        singleEvents: parsed.singleEvents,
+        routines: parsed.routines,
+      };
+      saveData();
+      resetToToday();
+      window.alert("Calendar restored from backup.");
+    };
+    reader.readAsText(file);
+  }
+
+  function uid() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function dateKey(year, month, day) {
+    return `${year}-${pad(month + 1)}-${pad(day)}`;
+  }
+
+  function parseDateKey(key) {
+    const [y, m, d] = key.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setHours(0, 0, 0, 0);
+    return dt;
+  }
+
+  function formatTime(time24) {
+    const [h, m] = time24.split(":").map(Number);
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${pad(m)} ${period}`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function hashNum(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+    }
+    return hash;
+  }
+
+  const TYPE_HUE_RANGES = {
+    event: { base: 120, spread: 40 },
+    routine: { base: 195, spread: 40 },
+    goal: { base: 350, spread: 30 },
+  };
+
+  function hslToHex(h, s, l) {
+    s /= 100;
+    l /= 100;
+    const k = (n) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const toHex = (x) => Math.round(255 * x).toString(16).padStart(2, "0");
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  }
+
+  function itemAccentStyle(it) {
+    if (typeof it.color === "string" && it.color) {
+      return `--item-color: ${it.color}; --item-color-soft: ${it.color}38;`;
+    }
+    if (typeof it.color === "number") {
+      return `--item-color: hsl(${it.color}, 55%, 46%); --item-color-soft: hsla(${it.color}, 55%, 46%, 0.22);`;
+    }
+    const cfg = TYPE_HUE_RANGES[it.type] || TYPE_HUE_RANGES.event;
+    const n = hashNum((it.text || "").trim().toLowerCase());
+    const hue = (cfg.base + (n % cfg.spread)) % 360;
+    const lightness = 42 + (n % 10);
+    return `--item-color: hsl(${hue}, 55%, ${lightness}%); --item-color-soft: hsla(${hue}, 55%, ${lightness}%, 0.22);`;
+  }
+
+  function hasCustomColor(it) {
+    return (typeof it.color === "string" && it.color) || typeof it.color === "number";
+  }
+
+  function itemPriorityValue(record) {
+    if (typeof record.priority === "number") return record.priority;
+    if (record.favor === "favor") return 10;
+    if (record.favor === "unfavor") return 1;
+    return 0;
+  }
+
+  function itemMonthRank(it) {
+    const p = it.priority || 0;
+    if (p > 0) return 10 - p;
+    return it.type === "event" ? 20 : 21;
+  }
+
+  function goalDurationText(it) {
+    if (it.repeat === "untilCompletions") return "Tracked goal — until target completions";
+    if (it.repeat === "untilComplete") return "Goal — until you mark it complete";
+    if (!it.endDate) return "";
+    const labels = { weekly: "Weekly goal", monthly: "Monthly goal", yearly: "Yearly goal", untilDate: "Goal" };
+    const label = labels[it.repeat] || "Goal";
+    return `${label} — ends ${MONTHS[it.endDate.getMonth()]} ${it.endDate.getDate()}`;
+  }
+
+  // ---------- Routine occurrence math ----------
+  function computeGoalEndDate(routine, start) {
+    if (routine.repeat === "daily") return start;
+    if (routine.repeat === "weekly") return new Date(start.getFullYear(), start.getMonth(), start.getDate() + (6 - start.getDay()));
+    if (routine.repeat === "monthly") return new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    if (routine.repeat === "yearly") return new Date(start.getFullYear(), 11, 31);
+    if (routine.repeat === "untilDate") return routine.untilDate ? parseDateKey(routine.untilDate) : start;
+    if (routine.repeat === "untilComplete") return null;
+    if (routine.repeat === "untilCompletions") return null;
+    return undefined;
+  }
+
+  function getGoalOccurrence(routine, target, start) {
+    const endDate = computeGoalEndDate(routine, start);
+    if (endDate === undefined) return null;
+    if (endDate && target > endDate) return null;
+    return { text: routine.text, time: routine.time, endDate };
+  }
+
+  function getRoutineOccurrence(routine, key) {
+    const target = parseDateKey(key);
+    const start = parseDateKey(routine.startDate);
+    if (target < start) return null;
+
+    if (routine.type === "goal") {
+      return getGoalOccurrence(routine, target, start);
+    }
+
+    const dayDiff = Math.round((target - start) / 86400000);
+
+    if (routine.repeat === "daily") {
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "weekly") {
+      if (dayDiff % 7 !== 0) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "cycle") {
+      const n = routine.items.length;
+      if (n === 0) return null;
+      const idx = ((dayDiff % n) + n) % n;
+      return { text: routine.items[idx], time: routine.time };
+    }
+    if (routine.repeat === "monthly") {
+      if (target.getDate() !== start.getDate()) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "yearly") {
+      if (target.getDate() !== start.getDate() || target.getMonth() !== start.getMonth()) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    if (routine.repeat === "weekdays") {
+      if (!routine.days.includes(target.getDay())) return null;
+      if (routine.weeks && dayDiff >= routine.weeks * 7) return null;
+      return { text: routine.text, time: routine.time };
+    }
+    return null;
+  }
+
+  function getItemsForDate(key) {
+    const items = [];
+    (state.data.singleEvents[key] || []).forEach((ev) => {
+      items.push({ id: ev.id, type: ev.type, time: ev.time, text: ev.text, source: "single", color: ev.color, priority: itemPriorityValue(ev) });
+    });
+    state.data.routines.forEach((r) => {
+      const occ = getRoutineOccurrence(r, key);
+      if (occ) {
+        const tracked = r.type === "goal" && !!r.tracked;
+        items.push({
+          id: r.id,
+          type: r.type || "routine",
+          time: occ.time,
+          text: tracked ? `${r.text} (${r.dailyTask || ""})` : occ.text,
+          source: "routine",
+          repeat: r.repeat,
+          endDate: occ.endDate,
+          tracked,
+          completedToday: tracked && Array.isArray(r.completedDates) && r.completedDates.includes(key),
+          color: r.color,
+          priority: itemPriorityValue(r),
+        });
+      }
+    });
+    items.sort((a, b) => {
+      if (!a.time && !b.time) return 0;
+      if (!a.time) return 1;
+      if (!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+    return items;
+  }
+
+  // ---------- Calendar rendering ----------
+  function renderWeekdaysRow() {
+    weekdaysRowEl.innerHTML = WEEKDAYS_SHORT.map((d) => `<span>${d}</span>`).join("");
+  }
+
+  function renderMonth() {
+    monthTitleEl.textContent = `${MONTHS[state.viewMonth]} ${state.viewYear}`;
+
+    const firstOfMonth = new Date(state.viewYear, state.viewMonth, 1);
+    const startOffset = firstOfMonth.getDay();
+    const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(state.viewYear, state.viewMonth, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const cells = [];
+    for (let i = 0; i < totalCells; i++) {
+      const dayOffset = i - startOffset + 1;
+      let year = state.viewYear;
+      let month = state.viewMonth;
+      let day = dayOffset;
+      let otherMonth = false;
+
+      if (dayOffset < 1) {
+        month = state.viewMonth - 1;
+        year = month < 0 ? state.viewYear - 1 : state.viewYear;
+        month = (month + 12) % 12;
+        day = daysInPrevMonth + dayOffset;
+        otherMonth = true;
+      } else if (dayOffset > daysInMonth) {
+        day = dayOffset - daysInMonth;
+        month = state.viewMonth + 1;
+        year = month > 11 ? state.viewYear + 1 : state.viewYear;
+        month = month % 12;
+        otherMonth = true;
+      }
+
+      const key = dateKey(year, month, day);
+      const cellDate = new Date(year, month, day);
+      cellDate.setHours(0, 0, 0, 0);
+      const isToday = cellDate.getTime() === today.getTime();
+      const isSelected = state.selectedDate === key;
+      const dayItems = getItemsForDate(key);
+
+      const classes = ["day-cell"];
+      if (otherMonth) classes.push("other-month");
+      if (isToday) classes.push("today");
+      if (isSelected) classes.push("selected");
+      if (state.multiDayPicking && state.multiDaySelectedDates.has(key)) classes.push("multi-picked");
+
+      const maxChips = 3;
+      const prioritizedItems = [...dayItems].sort((a, b) => itemMonthRank(a) - itemMonthRank(b));
+      const visibleItems = prioritizedItems.slice(0, maxChips);
+      const extraCount = dayItems.length - visibleItems.length;
+      const chipsHtml =
+        visibleItems
+          .map(
+            (it) =>
+              `<span class="day-chip" style="${itemAccentStyle(it)}"><span class="day-chip-dot dot-${it.type}"></span><span class="day-chip-text">${escapeHtml(it.text)}</span></span>`
+          )
+          .join("") + (extraCount > 0 ? `<span class="day-chip-more">+${extraCount} more</span>` : "");
+
+      cells.push(`
+        <button type="button" class="${classes.join(" ")}" data-key="${key}" data-year="${year}" data-month="${month}" data-day="${day}">
+          <span class="day-num">${day}</span>
+          <span class="day-cell-items">${chipsHtml}</span>
+        </button>
+      `);
+    }
+
+    daysGridEl.innerHTML = cells.join("");
+  }
+
+  function changeMonth(delta) {
+    state.viewMonth += delta;
+    if (state.viewMonth < 0) {
+      state.viewMonth = 11;
+      state.viewYear -= 1;
+    } else if (state.viewMonth > 11) {
+      state.viewMonth = 0;
+      state.viewYear += 1;
+    }
+    renderMonth();
+  }
+
+  function todayKey() {
+    return dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  }
+
+  function currentPanelKey() {
+    return state.selectedDate || todayKey();
+  }
+
+  function selectDate(key) {
+    state.selectedDate = key;
+    const d = parseDateKey(key);
+    state.viewYear = d.getFullYear();
+    state.viewMonth = d.getMonth();
+    state.sidebarCalYear = d.getFullYear();
+    state.sidebarCalMonth = d.getMonth();
+    renderMonth();
+    renderTodayPanel();
+    renderSidebarCalendar();
+    renderDayView();
+  }
+
+  function resetToToday() {
+    state.selectedDate = null;
+    state.viewYear = today.getFullYear();
+    state.viewMonth = today.getMonth();
+    state.sidebarCalYear = today.getFullYear();
+    state.sidebarCalMonth = today.getMonth();
+    renderMonth();
+    renderTodayPanel();
+    renderSidebarCalendar();
+    renderDayView();
+  }
+
+  // ---------- Info panel ----------
+  function itemInnerHtml(it, durationText) {
+    return `
+      <div class="event-main">
+        <div class="event-meta-row">
+          <span class="event-badge">${TYPE_LABELS[it.type]}</span>
+          ${it.priority > 0 ? `<span class="favor-badge" title="Priority ${it.priority}/10 — higher shows first in month view">&#9733; ${it.priority}</span>` : ""}
+        </div>
+        <span class="event-text">${escapeHtml(it.text)}</span>
+        ${durationText ? `<span class="goal-duration">${escapeHtml(durationText)}</span>` : ""}
+      </div>
+      ${it.time ? `<span class="event-time">${formatTime(it.time)}</span>` : ""}
+      <div class="event-actions">
+        <button type="button" class="edit-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Edit">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>
+        </button>
+        ${
+          it.type === "goal"
+            ? `<button type="button" class="complete-btn${it.completedToday ? " checked" : ""}" data-id="${it.id}" data-source="${it.source}" data-tracked="${it.tracked ? "1" : "0"}" aria-label="Mark goal complete"><svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            : `<button type="button" class="delete-btn" data-id="${it.id}" data-source="${it.source}" aria-label="Delete">&times;</button>`
+        }
+      </div>
+    `;
+  }
+
+  function isLongGoal(it) {
+    return it.type === "goal" && it.repeat && it.repeat !== "daily";
+  }
+
+  function listItemHtml(it, durationText) {
+    const cls = `event-item type-${it.type}${hasCustomColor(it) ? " custom-color" : ""}`;
+    return `<li class="${cls}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</li>`;
+  }
+
+  function renderItemsList(listEl, emptyEl, items) {
+    if (items.length === 0) {
+      listEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    const mainItems = items.filter((it) => !isLongGoal(it));
+    const longGoals = items.filter(isLongGoal);
+
+    let html = mainItems.map((it) => listItemHtml(it)).join("");
+    if (longGoals.length > 0) {
+      html += `<li class="goal-section-divider">Ongoing goals</li>`;
+      html += longGoals.map((it) => listItemHtml(it, goalDurationText(it))).join("");
+    }
+    listEl.innerHTML = html;
+  }
+
+  function renderTodayPanel() {
+    const key = currentPanelKey();
+    const [y, m, d] = key.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    todayPanelLabel.textContent = key === todayKey() ? "Today" : WEEKDAYS_LONG[dt.getDay()];
+    todayPanelDate.textContent = `${MONTHS[m - 1]} ${d}, ${y}`;
+    renderItemsList(todayEventListEl, todayEmptyStateEl, getItemsForDate(key));
+  }
+
+  // ---------- Day view ----------
+  function formatHourLabel(hour) {
+    const period = hour >= 12 ? "PM" : "AM";
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${h12} ${period}`;
+  }
+
+  function dayItemHtml(it) {
+    const durationText = isLongGoal(it) ? goalDurationText(it) : "";
+    const cls = `event-item compact type-${it.type}${hasCustomColor(it) ? " custom-color" : ""}`;
+    return `<div class="${cls}" style="${itemAccentStyle(it)}" data-id="${it.id}" data-source="${it.source}">${itemInnerHtml(it, durationText)}</div>`;
+  }
+
+  function renderDayView() {
+    const key = currentPanelKey();
+    const [y, m, d] = key.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dayViewTitle.textContent = `${WEEKDAYS_LONG[dt.getDay()]}, ${MONTHS[m - 1]} ${d}`;
+
+    const items = getItemsForDate(key);
+    const allDayItems = items.filter((it) => !it.time);
+    const timedItems = items.filter((it) => it.time);
+
+    dayViewAllDay.innerHTML = allDayItems.map((it) => dayItemHtml(it)).join("");
+
+    const hourBuckets = Array.from({ length: 24 }, () => []);
+    timedItems.forEach((it) => {
+      const hour = parseInt(it.time.split(":")[0], 10);
+      hourBuckets[hour].push(it);
+    });
+
+    dayViewTimeline.innerHTML = hourBuckets
+      .map(
+        (bucketItems, hour) => `
+      <div class="day-hour-row">
+        <div class="day-hour-label">${formatHourLabel(hour)}</div>
+        <div class="day-hour-content">${bucketItems.map((it) => dayItemHtml(it)).join("")}</div>
+      </div>
+    `
+      )
+      .join("");
+  }
+
+  function setViewMode(mode) {
+    state.viewMode = mode;
+    monthView.hidden = mode !== "month";
+    dayView.hidden = mode !== "day";
+    trackedGoalsView.hidden = mode !== "trackedGoals";
+    trackedGoalsToggleBtn.classList.toggle("active", mode === "trackedGoals");
+    if (mode !== "trackedGoals") {
+      viewToggleBtn.textContent = mode === "day" ? "Month view" : "Day view";
+    }
+    renderMonth();
+    renderDayView();
+    renderTrackedGoalsView();
+  }
+
+  // ---------- Tracked goals ----------
+  function daysBetweenInclusive(a, b) {
+    return Math.round((b - a) / 86400000) + 1;
+  }
+
+  function trackedGoalProgress(routine) {
+    const start = parseDateKey(routine.startDate);
+    const completedDates = Array.isArray(routine.completedDates) ? routine.completedDates : [];
+
+    if (routine.repeat === "untilCompletions") {
+      const target = routine.targetCompletions || 1;
+      const done = completedDates.length;
+      const pct = Math.min(100, (done / target) * 100);
+      return { mode: "completions", pct, done, target };
+    }
+
+    const end = computeGoalEndDate(routine, start);
+    const totalDays = Math.max(1, daysBetweenInclusive(start, end));
+    const cappedToday = today > end ? end : today;
+    const elapsedDays = cappedToday < start ? 0 : Math.min(totalDays, daysBetweenInclusive(start, cappedToday));
+    const inRangeCompleted = completedDates.filter((k) => {
+      const d = parseDateKey(k);
+      return d >= start && d <= end;
+    }).length;
+    const completedDays = Math.min(inRangeCompleted, elapsedDays);
+    const missedDays = Math.max(0, elapsedDays - completedDays);
+    const remainingDays = Math.max(0, totalDays - elapsedDays);
+
+    return {
+      mode: "calendar",
+      greenPct: (completedDays / totalDays) * 100,
+      redPct: (missedDays / totalDays) * 100,
+      greyPct: (remainingDays / totalDays) * 100,
+      completedDays,
+      totalDays,
+      elapsedDays,
+    };
+  }
+
+  function trackedGoalCardHtml(routine) {
+    const progress = trackedGoalProgress(routine);
+    let barHtml;
+    let metaText;
+    if (progress.mode === "completions") {
+      barHtml = `<div class="progress-bar"><div class="progress-segment progress-green" style="width:${progress.pct}%"></div></div>`;
+      metaText = `${progress.done} / ${progress.target} completions`;
+    } else {
+      barHtml = `<div class="progress-bar">
+        <div class="progress-segment progress-green" style="width:${progress.greenPct}%"></div>
+        <div class="progress-segment progress-red" style="width:${progress.redPct}%"></div>
+        <div class="progress-segment progress-grey" style="width:${progress.greyPct}%"></div>
+      </div>`;
+      metaText = `Day ${progress.elapsedDays} / ${progress.totalDays} — completed ${progress.completedDays} time${progress.completedDays === 1 ? "" : "s"}`;
+    }
+
+    return `
+      <div class="tracked-goal-card${hasCustomColor(routine) ? " custom-color" : ""}" style="${itemAccentStyle({ type: "goal", text: routine.text, color: routine.color })}">
+        <div class="tracked-goal-head">
+          <span class="event-badge">Goal</span>
+          <span class="tracked-goal-name">${escapeHtml(routine.text)}</span>
+        </div>
+        ${routine.dailyTask ? `<div class="tracked-goal-daily">Daily: ${escapeHtml(routine.dailyTask)}</div>` : ""}
+        ${barHtml}
+        <div class="tracked-goal-meta">${escapeHtml(metaText)}</div>
+      </div>
+    `;
+  }
+
+  function pruneFinishedTrackedGoals() {
+    const before = state.data.routines.length;
+    state.data.routines = state.data.routines.filter((r) => {
+      if (r.type === "goal" && r.tracked && r.repeat === "untilCompletions") {
+        const done = Array.isArray(r.completedDates) ? r.completedDates.length : 0;
+        const target = r.targetCompletions || 1;
+        return done < target;
+      }
+      return true;
+    });
+    if (state.data.routines.length !== before) saveData();
+  }
+
+  function renderTrackedGoalsView() {
+    pruneFinishedTrackedGoals();
+    const trackedGoals = state.data.routines.filter((r) => r.type === "goal" && r.tracked);
+    if (trackedGoals.length === 0) {
+      trackedGoalsBody.innerHTML = "";
+      trackedGoalsEmptyState.style.display = "block";
+      return;
+    }
+    trackedGoalsEmptyState.style.display = "none";
+    trackedGoalsBody.innerHTML = trackedGoals.map((r) => trackedGoalCardHtml(r)).join("");
+  }
+
+  function setTodayPanelHidden(hidden) {
+    todayPanel.classList.toggle("collapsed", hidden);
+    toggleTodayPanelBtn.setAttribute("aria-pressed", String(!hidden));
+    localStorage.setItem(TODAY_PANEL_KEY, hidden ? "1" : "0");
+  }
+
+  function deleteSingleEvent(key, id) {
+    if (!state.data.singleEvents[key]) return;
+    state.data.singleEvents[key] = state.data.singleEvents[key].filter((ev) => ev.id !== id);
+    if (state.data.singleEvents[key].length === 0) delete state.data.singleEvents[key];
+    saveData();
+  }
+
+  function deleteRoutine(id) {
+    state.data.routines = state.data.routines.filter((r) => r.id !== id);
+    saveData();
+  }
+
+  function deleteAllInGroup(groupId) {
+    Object.keys(state.data.singleEvents).forEach((key) => {
+      state.data.singleEvents[key] = state.data.singleEvents[key].filter((ev) => ev.groupId !== groupId);
+      if (state.data.singleEvents[key].length === 0) delete state.data.singleEvents[key];
+    });
+    saveData();
+  }
+
+  function applyGroupColorTimeSync(groupId, color, time) {
+    Object.keys(state.data.singleEvents).forEach((key) => {
+      state.data.singleEvents[key].forEach((ev) => {
+        if (ev.groupId === groupId) {
+          ev.color = color;
+          ev.time = time;
+        }
+      });
+    });
+    saveData();
+  }
+
+  function renderAllViews() {
+    pruneFinishedTrackedGoals();
+    renderMonth();
+    renderTodayPanel();
+    renderDayView();
+    renderTrackedGoalsView();
+  }
+
+  function showGroupPrompt(message, onThisOnly, onAll) {
+    groupPromptMessage.textContent = message;
+    groupPromptModal.classList.add("open");
+    groupPromptModal.setAttribute("aria-hidden", "false");
+    groupPromptBackdrop.classList.add("visible");
+
+    function cleanup() {
+      groupPromptModal.classList.remove("open");
+      groupPromptModal.setAttribute("aria-hidden", "true");
+      groupPromptBackdrop.classList.remove("visible");
+      groupPromptThisBtn.onclick = null;
+      groupPromptAllBtn.onclick = null;
+      groupPromptCancelBtn.onclick = null;
+      groupPromptBackdrop.onclick = null;
+    }
+
+    groupPromptThisBtn.onclick = () => {
+      cleanup();
+      onThisOnly();
+    };
+    groupPromptAllBtn.onclick = () => {
+      cleanup();
+      onAll();
+    };
+    groupPromptCancelBtn.onclick = () => cleanup();
+    groupPromptBackdrop.onclick = () => cleanup();
+  }
+
+  // ---------- Mini calendar (date picker) ----------
+  function buildMiniCalCells(y, m, selectedKey) {
+    const firstOfMonth = new Date(y, m, 1);
+    const startOffset = firstOfMonth.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const daysInPrevMonth = new Date(y, m, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const cells = [];
+    for (let i = 0; i < totalCells; i++) {
+      const dayOffset = i - startOffset + 1;
+      let year = y;
+      let month = m;
+      let day = dayOffset;
+      let otherMonth = false;
+
+      if (dayOffset < 1) {
+        month = m - 1;
+        year = month < 0 ? y - 1 : y;
+        month = (month + 12) % 12;
+        day = daysInPrevMonth + dayOffset;
+        otherMonth = true;
+      } else if (dayOffset > daysInMonth) {
+        day = dayOffset - daysInMonth;
+        month = m + 1;
+        year = month > 11 ? y + 1 : y;
+        month = month % 12;
+        otherMonth = true;
+      }
+
+      const key = dateKey(year, month, day);
+      const cellDate = new Date(year, month, day);
+      cellDate.setHours(0, 0, 0, 0);
+      const isToday = cellDate.getTime() === today.getTime();
+      const isSelected = selectedKey === key;
+
+      const classes = ["mini-cal-cell"];
+      if (otherMonth) classes.push("other-month");
+      if (isToday) classes.push("today");
+      if (isSelected) classes.push("selected");
+
+      cells.push(`<button type="button" class="${classes.join(" ")}" data-key="${key}">${day}</button>`);
+    }
+
+    return cells.join("");
+  }
+
+  function renderMiniCalendar() {
+    miniCalTitle.textContent = `${MONTHS[state.miniCalMonth]} ${state.miniCalYear}`;
+    miniCalGrid.innerHTML = buildMiniCalCells(state.miniCalYear, state.miniCalMonth, formDate.value);
+  }
+
+  function renderSidebarCalendar() {
+    sidebarCalTitle.textContent = `${MONTHS[state.sidebarCalMonth]} ${state.sidebarCalYear}`;
+    sidebarCalGrid.innerHTML = buildMiniCalCells(state.sidebarCalYear, state.sidebarCalMonth, currentPanelKey());
+  }
+
+  function openMiniCalendar() {
+    const base = formDate.value ? parseDateKey(formDate.value) : new Date(today);
+    state.miniCalYear = base.getFullYear();
+    state.miniCalMonth = base.getMonth();
+    renderMiniCalendar();
+    miniCalendar.classList.add("open");
+    miniCalToggle.classList.add("active");
+  }
+
+  function closeMiniCalendar() {
+    miniCalendar.classList.remove("open");
+    miniCalToggle.classList.remove("active");
+  }
+
+  // ---------- Add-event modal ----------
+  function setColorPickerUI(hex) {
+    autoColorBtn.classList.toggle("active", !hex);
+    customColorInput.value = hex || "#c8555f";
+  }
+
+  function setPriorityUI(priority) {
+    favorSlider.value = priority;
+    favorValueLabel.textContent = priority;
+  }
+
+  function resetAddForm(presetKey) {
+    state.editingId = null;
+    state.editingSource = null;
+    state.editingOriginalDate = null;
+    addModalTitle.textContent = "Add Event";
+    saveBtn.textContent = "Save";
+    typePicker.classList.remove("locked");
+
+    state.selectedType = null;
+    state.selectedRepeat = null;
+    state.goalFrequency = "daily";
+    goalFreqHint.textContent = GOAL_FREQ_HINTS.daily;
+    state.eventRepeatDays = new Set();
+    state.eventForever = false;
+    state.eventRepeatWeeks = null;
+    formDate.value = presetKey || currentPanelKey();
+    formTime.value = "";
+    formText.value = "";
+    eventWeeksInput.value = "";
+    trackedGoalCheckbox.checked = false;
+    formDailyTask.value = "";
+    goalUntilDateInput.value = "";
+    goalUntilCompletionsInput.value = "";
+    untilCompletionsBtn.hidden = true;
+    untilCompleteBtn.hidden = false;
+    trackedGoalWrap.hidden = true;
+    dailyTaskWrap.hidden = true;
+    goalUntilDateWrap.hidden = true;
+    goalUntilCompletionsWrap.hidden = true;
+    state.formColor = null;
+    setColorPickerUI(null);
+    colorPickerWrap.hidden = true;
+    state.formPriority = 0;
+    setPriorityUI(0);
+    favorWrap.hidden = true;
+    deleteItemBtn.hidden = true;
+    cycleItemsEl.innerHTML = "";
+    addCycleRow();
+    addCycleRow();
+    addCycleRow();
+
+    goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.freq === "daily");
+    });
+    eventWeekdayPicker.querySelectorAll(".weekday-btn").forEach((b) => b.classList.remove("active"));
+    eventForeverBtn.classList.remove("active");
+
+    typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.remove("active"));
+    repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+    repeatModeGroup.hidden = true;
+    repeatHint.textContent = "";
+    eventRepeatGroup.hidden = true;
+    timeFieldWrap.hidden = true;
+    goalRepeatGroup.hidden = true;
+    singleTextWrap.hidden = true;
+    cycleFieldWrap.hidden = true;
+    saveBtn.disabled = true;
+    multiDayBtn.disabled = true;
+    closeMiniCalendar();
+  }
+
+  function addCycleRow(value) {
+    const row = document.createElement("div");
+    row.className = "cycle-row";
+    row.innerHTML = `
+      <span class="cycle-index"></span>
+      <input type="text" class="cycle-input" placeholder="e.g. Push" maxlength="60" />
+      <button type="button" class="remove-cycle-btn" aria-label="Remove">&times;</button>
+    `;
+    row.querySelector(".cycle-input").value = value || "";
+    cycleItemsEl.appendChild(row);
+    renumberCycleRows();
+  }
+
+  function renumberCycleRows() {
+    cycleItemsEl.querySelectorAll(".cycle-row").forEach((row, i) => {
+      row.querySelector(".cycle-index").textContent = i + 1;
+    });
+  }
+
+  function selectType(type) {
+    typePicker.querySelectorAll(".type-btn").forEach((b) => b.classList.toggle("active", b.dataset.type === type));
+    state.selectedType = type;
+    state.selectedRepeat = null;
+    repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+    updateFieldsForType();
+  }
+
+  function updateGoalConditionalFields() {
+    const tracked = trackedGoalCheckbox.checked;
+    dailyTaskWrap.hidden = !tracked;
+    untilCompletionsBtn.hidden = !tracked;
+    untilCompleteBtn.hidden = tracked;
+    if (!tracked && state.goalFrequency === "untilCompletions") {
+      state.goalFrequency = "daily";
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.toggle("active", b.dataset.freq === "daily"));
+    }
+    if (tracked && state.goalFrequency === "untilComplete") {
+      state.goalFrequency = "daily";
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.toggle("active", b.dataset.freq === "daily"));
+    }
+    goalUntilDateWrap.hidden = state.goalFrequency !== "untilDate";
+    goalUntilCompletionsWrap.hidden = state.goalFrequency !== "untilCompletions";
+    goalFreqHint.textContent = GOAL_FREQ_HINTS[state.goalFrequency];
+    updateSaveEnabled();
+  }
+
+  function updateFieldsForType() {
+    const type = state.selectedType;
+    repeatModeGroup.hidden = type !== "routine";
+    goalRepeatGroup.hidden = type !== "goal";
+    eventRepeatGroup.hidden = type !== "event";
+    multiDayBtn.disabled = type !== "event";
+    trackedGoalWrap.hidden = type !== "goal";
+    colorPickerWrap.hidden = !type;
+    favorWrap.hidden = !type;
+    if (type !== "goal") {
+      dailyTaskWrap.hidden = true;
+      goalUntilDateWrap.hidden = true;
+      goalUntilCompletionsWrap.hidden = true;
+    }
+
+    if (type === "routine") {
+      const repeat = state.selectedRepeat;
+      timeFieldWrap.hidden = !repeat;
+      singleTextWrap.hidden = !(repeat === "daily" || repeat === "weekly");
+      cycleFieldWrap.hidden = repeat !== "cycle";
+      singleTextLabel.textContent = "Routine name";
+      formText.placeholder = "e.g. Morning run";
+      repeatHint.textContent = repeat ? REPEAT_HINTS[repeat] : "";
+    } else if (type === "event") {
+      timeFieldWrap.hidden = false;
+      singleTextWrap.hidden = false;
+      cycleFieldWrap.hidden = true;
+      singleTextLabel.textContent = "Description";
+      formText.placeholder = "What's this for?";
+    } else if (type === "goal") {
+      timeFieldWrap.hidden = true;
+      singleTextWrap.hidden = false;
+      cycleFieldWrap.hidden = true;
+      singleTextLabel.textContent = "Goal";
+      formText.placeholder = "What's the goal?";
+      updateGoalConditionalFields();
+    } else {
+      timeFieldWrap.hidden = true;
+      singleTextWrap.hidden = true;
+      cycleFieldWrap.hidden = true;
+    }
+
+    updateSaveEnabled();
+  }
+
+  function updateSaveEnabled() {
+    const type = state.selectedType;
+
+    if (!type || !formDate.value) {
+      saveBtn.disabled = true;
+      return;
+    }
+    if (type === "goal") {
+      if (formText.value.trim().length === 0) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (state.goalFrequency === "untilDate" && !goalUntilDateInput.value) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (state.goalFrequency === "untilCompletions" && !(parseInt(goalUntilCompletionsInput.value, 10) > 0)) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (trackedGoalCheckbox.checked && formDailyTask.value.trim().length === 0) {
+        saveBtn.disabled = true;
+        return;
+      }
+      saveBtn.disabled = false;
+      return;
+    }
+    if (type === "event") {
+      saveBtn.disabled = formText.value.trim().length === 0;
+      return;
+    }
+    if (type === "routine") {
+      if (!state.selectedRepeat) {
+        saveBtn.disabled = true;
+        return;
+      }
+      if (state.selectedRepeat === "cycle") {
+        const values = Array.from(cycleItemsEl.querySelectorAll(".cycle-input"))
+          .map((i) => i.value.trim())
+          .filter(Boolean);
+        saveBtn.disabled = values.length === 0;
+      } else {
+        saveBtn.disabled = formText.value.trim().length === 0;
+      }
+    }
+  }
+
+  function openAddModal(presetKey) {
+    resetAddForm(presetKey);
+    addModal.classList.add("open");
+    addModal.setAttribute("aria-hidden", "false");
+    modalBackdrop.classList.add("visible");
+  }
+
+  function findRecordForItem(id, source) {
+    if (source === "routine") {
+      return state.data.routines.find((r) => r.id === id) || null;
+    }
+    const key = currentPanelKey();
+    const list = state.data.singleEvents[key] || [];
+    return list.find((ev) => ev.id === id) || null;
+  }
+
+  function prefillFormForEdit(item, record) {
+    selectType(item.type);
+
+    if (item.type === "event") {
+      if (item.source === "single") {
+        formDate.value = state.editingOriginalDate;
+        formTime.value = record.time || "";
+        formText.value = record.text;
+      } else {
+        formDate.value = record.startDate;
+        formTime.value = record.time || "";
+        formText.value = record.text;
+        record.days.forEach((d) => {
+          state.eventRepeatDays.add(d);
+          const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${d}"]`);
+          if (btn) btn.classList.add("active");
+        });
+        if (record.weeks) {
+          state.eventRepeatWeeks = record.weeks;
+          eventWeeksInput.value = record.weeks;
+        } else {
+          state.eventForever = true;
+          eventForeverBtn.classList.add("active");
+        }
+      }
+    } else if (item.type === "goal") {
+      formDate.value = record.startDate;
+      formText.value = record.text;
+      state.goalFrequency = record.repeat;
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.freq === record.repeat);
+      });
+      trackedGoalCheckbox.checked = !!record.tracked;
+      formDailyTask.value = record.dailyTask || "";
+      goalUntilDateInput.value = record.untilDate || "";
+      goalUntilCompletionsInput.value = record.targetCompletions || "";
+      updateGoalConditionalFields();
+    } else if (item.type === "routine") {
+      formDate.value = record.startDate;
+      repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.repeat === record.repeat);
+      });
+      state.selectedRepeat = record.repeat;
+      updateFieldsForType();
+      if (record.repeat === "cycle") {
+        cycleItemsEl.innerHTML = "";
+        record.items.forEach((val) => addCycleRow(val));
+        formTime.value = record.time || "";
+      } else {
+        formText.value = record.text;
+        formTime.value = record.time || "";
+      }
+      repeatHint.textContent = REPEAT_HINTS[record.repeat];
+    }
+
+    if (typeof record.color === "string" && record.color) {
+      state.formColor = record.color;
+    } else if (typeof record.color === "number") {
+      state.formColor = hslToHex(record.color, 55, 46);
+    } else {
+      state.formColor = null;
+    }
+    setColorPickerUI(state.formColor);
+
+    state.formPriority = itemPriorityValue(record);
+    setPriorityUI(state.formPriority);
+
+    deleteItemBtn.hidden = false;
+
+    updateSaveEnabled();
+  }
+
+  function openEditModal(item) {
+    const record = findRecordForItem(item.id, item.source);
+    if (!record) return;
+    const originalDate = item.source === "single" ? currentPanelKey() : null;
+
+    openAddModal(currentPanelKey());
+    state.editingId = item.id;
+    state.editingSource = item.source;
+    state.editingOriginalDate = originalDate;
+    addModalTitle.textContent = `Edit ${TYPE_LABELS[item.type]}`;
+    saveBtn.textContent = "Save Changes";
+    typePicker.classList.add("locked");
+    prefillFormForEdit(item, record);
+  }
+
+  function closeAddModal() {
+    addModal.classList.remove("open");
+    addModal.setAttribute("aria-hidden", "true");
+    modalBackdrop.classList.remove("visible");
+  }
+
+  // ---------- Multi-day picking ----------
+  function updateMultiDayBar() {
+    const n = state.multiDaySelectedDates.size;
+    multiDayCount.textContent = `${n} day${n === 1 ? "" : "s"} selected`;
+    multiDaySaveBtn.disabled = n === 0 || multiDayTextInput.value.trim().length === 0;
+  }
+
+  function enterMultiDayPicking() {
+    state.multiDayTime = formTime.value || null;
+    state.multiDaySelectedDates = new Set();
+    state.multiDayPicking = true;
+    multiDayTextInput.value = formText.value.trim();
+    closeAddModal();
+    updateMultiDayBar();
+    multiDayBar.classList.add("visible");
+    renderMonth();
+    multiDayTextInput.focus();
+  }
+
+  function exitMultiDayPicking() {
+    state.multiDayPicking = false;
+    multiDayBar.classList.remove("visible");
+    renderMonth();
+  }
+
+  function saveMultiDayEvents() {
+    const text = multiDayTextInput.value.trim();
+    if (!text) return;
+    const groupId = state.multiDaySelectedDates.size > 1 ? uid() : undefined;
+    state.multiDaySelectedDates.forEach((key) => {
+      if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
+      state.data.singleEvents[key].push({
+        id: uid(),
+        type: "event",
+        time: state.multiDayTime,
+        text,
+        groupId,
+      });
+    });
+    saveData();
+    exitMultiDayPicking();
+    renderAllViews();
+  }
+
+  function submitAddForm(e) {
+    e.preventDefault();
+    const type = state.selectedType;
+    const key = formDate.value;
+    if (!type || !key) return;
+
+    if (type === "event" && state.editingSource === "single" && state.editingId) {
+      const existing = findRecordForItem(state.editingId, state.editingSource);
+      if (existing && existing.groupId) {
+        const newColor = state.formColor || null;
+        const newTime = formTime.value || null;
+        const colorChanged = (existing.color || null) !== newColor;
+        const timeChanged = (existing.time || null) !== newTime;
+        if (colorChanged || timeChanged) {
+          showGroupPrompt(
+            "This event repeats across multiple days. Apply this change to just today, or to all of them?",
+            () => performSubmit(type, key),
+            () => performSubmit(type, key, existing.groupId)
+          );
+          return;
+        }
+      }
+    }
+
+    performSubmit(type, key);
+  }
+
+  function performSubmit(type, key, syncGroupId) {
+    let preservedCompletedDates = null;
+    let existingGroupId = null;
+    if (state.editingId) {
+      const existing = findRecordForItem(state.editingId, state.editingSource);
+      if (existing) {
+        if (existing.type === "goal" && Array.isArray(existing.completedDates)) {
+          preservedCompletedDates = existing.completedDates;
+        }
+        if (existing.groupId) existingGroupId = existing.groupId;
+      }
+      if (state.editingSource === "routine") {
+        deleteRoutine(state.editingId);
+      } else {
+        deleteSingleEvent(state.editingOriginalDate, state.editingId);
+      }
+    }
+
+    if (type === "event") {
+      const text = formText.value.trim();
+      if (!text) return;
+      if ((state.eventForever || state.eventRepeatWeeks) && state.eventRepeatDays.size > 0) {
+        state.data.routines.push({
+          id: uid(),
+          type: "event",
+          repeat: "weekdays",
+          days: Array.from(state.eventRepeatDays).sort(),
+          startDate: key,
+          time: formTime.value || null,
+          weeks: state.eventForever ? null : state.eventRepeatWeeks,
+          text,
+          color: state.formColor,
+          priority: state.formPriority,
+        });
+      } else {
+        if (!state.data.singleEvents[key]) state.data.singleEvents[key] = [];
+        state.data.singleEvents[key].push({
+          id: uid(),
+          type,
+          time: formTime.value || null,
+          text,
+          color: state.formColor,
+          priority: state.formPriority,
+          groupId: existingGroupId || undefined,
+        });
+      }
+    } else if (type === "goal") {
+      const text = formText.value.trim();
+      if (!text) return;
+      const freq = state.goalFrequency;
+      if (freq === "untilDate" && !goalUntilDateInput.value) return;
+      if (freq === "untilCompletions" && !(parseInt(goalUntilCompletionsInput.value, 10) > 0)) return;
+      const tracked = trackedGoalCheckbox.checked;
+      if (tracked && !formDailyTask.value.trim()) return;
+      const record = {
+        id: uid(),
+        type: "goal",
+        repeat: freq,
+        startDate: key,
+        time: null,
+        text,
+        tracked,
+        color: state.formColor,
+        priority: state.formPriority,
+      };
+      if (freq === "untilDate") record.untilDate = goalUntilDateInput.value;
+      if (freq === "untilCompletions") record.targetCompletions = parseInt(goalUntilCompletionsInput.value, 10);
+      if (tracked) {
+        record.dailyTask = formDailyTask.value.trim();
+        record.completedDates = preservedCompletedDates || [];
+      }
+      state.data.routines.push(record);
+    } else if (type === "routine") {
+      const repeat = state.selectedRepeat;
+      if (!repeat) return;
+      if (repeat === "cycle") {
+        const items = Array.from(cycleItemsEl.querySelectorAll(".cycle-input"))
+          .map((i) => i.value.trim())
+          .filter(Boolean);
+        if (items.length === 0) return;
+        state.data.routines.push({
+          id: uid(),
+          type: "routine",
+          repeat: "cycle",
+          startDate: key,
+          time: formTime.value || null,
+          items,
+          color: state.formColor,
+          priority: state.formPriority,
+        });
+      } else {
+        const text = formText.value.trim();
+        if (!text) return;
+        state.data.routines.push({
+          id: uid(),
+          type: "routine",
+          repeat,
+          startDate: key,
+          time: formTime.value || null,
+          text,
+          color: state.formColor,
+          priority: state.formPriority,
+        });
+      }
+    }
+
+    saveData();
+
+    if (syncGroupId) {
+      applyGroupColorTimeSync(syncGroupId, state.formColor || null, formTime.value || null);
+    }
+
+    closeAddModal();
+    renderAllViews();
+  }
+
+  // ---------- Event listeners ----------
+  prevBtn.addEventListener("click", () => changeMonth(-1));
+  nextBtn.addEventListener("click", () => changeMonth(1));
+  todayBtn.addEventListener("click", resetToToday);
+  dayTodayBtn.addEventListener("click", resetToToday);
+
+  dayPrevBtn.addEventListener("click", () => {
+    const d = parseDateKey(currentPanelKey());
+    d.setDate(d.getDate() - 1);
+    selectDate(dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+  });
+
+  dayNextBtn.addEventListener("click", () => {
+    const d = parseDateKey(currentPanelKey());
+    d.setDate(d.getDate() + 1);
+    selectDate(dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+  });
+
+  viewToggleBtn.addEventListener("click", () => {
+    setViewMode(state.viewMode === "day" ? "month" : "day");
+  });
+
+  trackedGoalsToggleBtn.addEventListener("click", () => {
+    setViewMode(state.viewMode === "trackedGoals" ? "day" : "trackedGoals");
+  });
+
+  sidebarCalPrev.addEventListener("click", () => {
+    state.sidebarCalMonth -= 1;
+    if (state.sidebarCalMonth < 0) {
+      state.sidebarCalMonth = 11;
+      state.sidebarCalYear -= 1;
+    }
+    renderSidebarCalendar();
+  });
+
+  sidebarCalNext.addEventListener("click", () => {
+    state.sidebarCalMonth += 1;
+    if (state.sidebarCalMonth > 11) {
+      state.sidebarCalMonth = 0;
+      state.sidebarCalYear += 1;
+    }
+    renderSidebarCalendar();
+  });
+
+  sidebarCalGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".mini-cal-cell");
+    if (!cell) return;
+    selectDate(cell.dataset.key);
+    if (todayPanel.classList.contains("collapsed")) setTodayPanelHidden(false);
+  });
+
+  daysGridEl.addEventListener("click", (e) => {
+    const cell = e.target.closest(".day-cell");
+    if (!cell) return;
+    const { year, month, day } = cell.dataset;
+    const key = dateKey(Number(year), Number(month), Number(day));
+
+    if (state.multiDayPicking) {
+      if (state.multiDaySelectedDates.has(key)) {
+        state.multiDaySelectedDates.delete(key);
+        cell.classList.remove("multi-picked");
+      } else {
+        state.multiDaySelectedDates.add(key);
+        cell.classList.add("multi-picked");
+      }
+      updateMultiDayBar();
+      return;
+    }
+
+    selectDate(key);
+    if (todayPanel.classList.contains("collapsed")) setTodayPanelHidden(false);
+  });
+
+  todayPanelAddBtn.addEventListener("click", () => {
+    if (state.multiDayPicking) return;
+    openAddModal(currentPanelKey());
+  });
+  addEventBtn.addEventListener("click", () => {
+    if (state.multiDayPicking) return;
+    openAddModal(currentPanelKey());
+  });
+
+  exportDataBtn.addEventListener("click", exportData);
+  importDataBtn.addEventListener("click", () => importFileInput.click());
+  importFileInput.addEventListener("change", () => {
+    const file = importFileInput.files[0];
+    importFileInput.value = "";
+    if (!file) return;
+    const ok = window.confirm("This replaces everything currently on your calendar with the contents of this backup file. Continue?");
+    if (!ok) return;
+    importData(file);
+  });
+
+  closeModalBtn.addEventListener("click", closeAddModal);
+  modalBackdrop.addEventListener("click", closeAddModal);
+
+  miniCalToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (miniCalendar.classList.contains("open")) {
+      closeMiniCalendar();
+    } else {
+      openMiniCalendar();
+    }
+  });
+
+  miniCalPrev.addEventListener("click", () => {
+    state.miniCalMonth -= 1;
+    if (state.miniCalMonth < 0) {
+      state.miniCalMonth = 11;
+      state.miniCalYear -= 1;
+    }
+    renderMiniCalendar();
+  });
+
+  miniCalNext.addEventListener("click", () => {
+    state.miniCalMonth += 1;
+    if (state.miniCalMonth > 11) {
+      state.miniCalMonth = 0;
+      state.miniCalYear += 1;
+    }
+    renderMiniCalendar();
+  });
+
+  miniCalGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".mini-cal-cell");
+    if (!cell) return;
+    formDate.value = cell.dataset.key;
+    closeMiniCalendar();
+    updateSaveEnabled();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!miniCalendar.classList.contains("open")) return;
+    if (miniCalendar.contains(e.target) || e.target === miniCalToggle) return;
+    closeMiniCalendar();
+  });
+
+  multiDayBtn.addEventListener("click", enterMultiDayPicking);
+  multiDayCancelBtn.addEventListener("click", exitMultiDayPicking);
+  multiDaySaveBtn.addEventListener("click", saveMultiDayEvents);
+
+  function handleItemListClick(e) {
+    const editBtn = e.target.closest(".edit-btn");
+    if (editBtn) {
+      const { id, source } = editBtn.dataset;
+      const item = getItemsForDate(currentPanelKey()).find((it) => it.id === id && it.source === source);
+      if (item) openEditModal(item);
+      return;
+    }
+
+    const completeBtn = e.target.closest(".complete-btn");
+    if (completeBtn) {
+      const { id, source } = completeBtn.dataset;
+
+      if (completeBtn.dataset.tracked === "1") {
+        const routine = state.data.routines.find((r) => r.id === id);
+        if (routine) {
+          if (!Array.isArray(routine.completedDates)) routine.completedDates = [];
+          const key = currentPanelKey();
+          const idx = routine.completedDates.indexOf(key);
+          if (idx === -1) {
+            routine.completedDates.push(key);
+          } else {
+            routine.completedDates.splice(idx, 1);
+          }
+          if (routine.repeat === "untilCompletions" && routine.completedDates.length >= (routine.targetCompletions || 1)) {
+            deleteRoutine(id);
+            renderAllViews();
+            return;
+          }
+          saveData();
+        }
+        renderTodayPanel();
+        renderDayView();
+        renderTrackedGoalsView();
+        return;
+      }
+
+      if (completeBtn.classList.contains("checked")) return;
+      completeBtn.classList.add("checked");
+      const item = completeBtn.closest(".event-item");
+      setTimeout(() => {
+        item.classList.add("removing");
+        setTimeout(() => {
+          if (source === "routine") {
+            deleteRoutine(id);
+          } else {
+            deleteSingleEvent(currentPanelKey(), id);
+          }
+          renderTodayPanel();
+          renderMonth();
+          renderDayView();
+        }, 250);
+      }, 450);
+      return;
+    }
+
+    const btn = e.target.closest(".delete-btn");
+    if (!btn) return;
+    const { id, source } = btn.dataset;
+    if (source === "routine") {
+      const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
+      if (!ok) return;
+      deleteRoutine(id);
+      renderAllViews();
+      return;
+    }
+
+    const record = findRecordForItem(id, source);
+    if (record && record.groupId) {
+      showGroupPrompt(
+        "This event repeats across multiple days. Delete just today, or all of them?",
+        () => {
+          deleteSingleEvent(currentPanelKey(), id);
+          renderAllViews();
+        },
+        () => {
+          deleteAllInGroup(record.groupId);
+          renderAllViews();
+        }
+      );
+      return;
+    }
+
+    deleteSingleEvent(currentPanelKey(), id);
+    renderAllViews();
+  }
+
+  todayEventListEl.addEventListener("click", handleItemListClick);
+  dayViewAllDay.addEventListener("click", handleItemListClick);
+  dayViewTimeline.addEventListener("click", handleItemListClick);
+
+  toggleTodayPanelBtn.addEventListener("click", () => {
+    setTodayPanelHidden(!todayPanel.classList.contains("collapsed"));
+  });
+
+  closeTodayPanelBtn.addEventListener("click", () => setTodayPanelHidden(true));
+
+  typePicker.addEventListener("click", (e) => {
+    if (typePicker.classList.contains("locked")) return;
+    const btn = e.target.closest(".type-btn");
+    if (!btn) return;
+    selectType(btn.dataset.type);
+  });
+
+  goalFreqMode.addEventListener("click", (e) => {
+    const btn = e.target.closest(".seg-btn");
+    if (!btn || btn.hidden) return;
+    goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.goalFrequency = btn.dataset.freq;
+    updateGoalConditionalFields();
+  });
+
+  trackedGoalCheckbox.addEventListener("change", updateGoalConditionalFields);
+  goalUntilDateInput.addEventListener("input", updateSaveEnabled);
+  goalUntilCompletionsInput.addEventListener("input", updateSaveEnabled);
+  formDailyTask.addEventListener("input", updateSaveEnabled);
+
+  eventWeekdayPicker.addEventListener("click", (e) => {
+    const btn = e.target.closest(".weekday-btn");
+    if (!btn) return;
+    const day = Number(btn.dataset.day);
+    if (state.eventRepeatDays.has(day)) {
+      state.eventRepeatDays.delete(day);
+      btn.classList.remove("active");
+    } else {
+      state.eventRepeatDays.add(day);
+      btn.classList.add("active");
+    }
+  });
+
+  eventForeverBtn.addEventListener("click", () => {
+    state.eventForever = !state.eventForever;
+    eventForeverBtn.classList.toggle("active", state.eventForever);
+    if (state.eventForever) {
+      state.eventRepeatWeeks = null;
+      eventWeeksInput.value = "";
+    }
+    if (state.eventForever && state.eventRepeatDays.size === 0 && formDate.value) {
+      const day = parseDateKey(formDate.value).getDay();
+      state.eventRepeatDays.add(day);
+      const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${day}"]`);
+      if (btn) btn.classList.add("active");
+    }
+  });
+
+  eventWeeksInput.addEventListener("input", () => {
+    const n = parseInt(eventWeeksInput.value, 10);
+    if (n > 0) {
+      state.eventRepeatWeeks = n;
+      state.eventForever = false;
+      eventForeverBtn.classList.remove("active");
+      if (state.eventRepeatDays.size === 0 && formDate.value) {
+        const day = parseDateKey(formDate.value).getDay();
+        state.eventRepeatDays.add(day);
+        const btn = eventWeekdayPicker.querySelector(`.weekday-btn[data-day="${day}"]`);
+        if (btn) btn.classList.add("active");
+      }
+    } else {
+      state.eventRepeatWeeks = null;
+    }
+  });
+
+  multiDayTextInput.addEventListener("input", updateMultiDayBar);
+
+  repeatModeEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".seg-btn");
+    if (!btn) return;
+    repeatModeEl.querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.selectedRepeat = btn.dataset.repeat;
+    updateFieldsForType();
+  });
+
+  addCycleItemBtn.addEventListener("click", () => {
+    addCycleRow();
+    updateSaveEnabled();
+  });
+
+  cycleItemsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".remove-cycle-btn");
+    if (!btn) return;
+    btn.closest(".cycle-row").remove();
+    renumberCycleRows();
+    updateSaveEnabled();
+  });
+
+  autoColorBtn.addEventListener("click", () => {
+    state.formColor = null;
+    setColorPickerUI(null);
+  });
+
+  customColorInput.addEventListener("input", () => {
+    state.formColor = customColorInput.value;
+    autoColorBtn.classList.remove("active");
+  });
+
+  favorSlider.addEventListener("input", () => {
+    state.formPriority = Number(favorSlider.value);
+    favorValueLabel.textContent = state.formPriority;
+  });
+
+  deleteItemBtn.addEventListener("click", () => {
+    if (!state.editingId) return;
+    if (state.editingSource === "routine") {
+      const ok = window.confirm("This removes the routine from every day it repeats on, not just this one. Continue?");
+      if (!ok) return;
+      deleteRoutine(state.editingId);
+      closeAddModal();
+      renderAllViews();
+      return;
+    }
+
+    const record = findRecordForItem(state.editingId, state.editingSource);
+    if (record && record.groupId) {
+      showGroupPrompt(
+        "This event repeats across multiple days. Delete just today, or all of them?",
+        () => {
+          deleteSingleEvent(state.editingOriginalDate, state.editingId);
+          closeAddModal();
+          renderAllViews();
+        },
+        () => {
+          deleteAllInGroup(record.groupId);
+          closeAddModal();
+          renderAllViews();
+        }
+      );
+      return;
+    }
+
+    deleteSingleEvent(state.editingOriginalDate, state.editingId);
+    closeAddModal();
+    renderAllViews();
+  });
+
+  cycleItemsEl.addEventListener("input", updateSaveEnabled);
+  formText.addEventListener("input", updateSaveEnabled);
+  formDate.addEventListener("input", updateSaveEnabled);
+
+  addForm.addEventListener("submit", submitAddForm);
+
+  document.addEventListener("keydown", (e) => {
+    const tag = document.activeElement && document.activeElement.tagName;
+    const typing = tag === "INPUT" || tag === "TEXTAREA";
+
+    if (e.key === "Escape") {
+      if (groupPromptModal.classList.contains("open")) {
+        groupPromptCancelBtn.click();
+      } else if (miniCalendar.classList.contains("open")) {
+        closeMiniCalendar();
+      } else if (addModal.classList.contains("open")) {
+        closeAddModal();
+      } else if (state.multiDayPicking) {
+        exitMultiDayPicking();
+      }
+      return;
+    }
+    if (typing) return;
+
+    if (e.key === "ArrowLeft") changeMonth(-1);
+    if (e.key === "ArrowRight") changeMonth(1);
+  });
+
+  // ---------- Init ----------
+  pruneFinishedTrackedGoals();
+  setTodayPanelHidden(localStorage.getItem(TODAY_PANEL_KEY) === "1");
+  renderWeekdaysRow();
+  renderTodayPanel();
+  renderSidebarCalendar();
+  setViewMode("day");
+})();

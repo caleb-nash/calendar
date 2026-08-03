@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calendar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand"><span class="brand-mark">&#10022;</span> Calendar</div>
+        <button class="icon-btn" id="toggleTodayPanelBtn" aria-label="Toggle today panel" aria-pressed="true" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <button class="view-toggle-btn" id="trackedGoalsToggleBtn" type="button">Tracked Goals</button>
+        <button class="view-toggle-btn" id="viewToggleBtn" type="button">Month view</button>
+        <button class="icon-btn" id="exportDataBtn" aria-label="Export calendar backup" title="Export backup" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="importDataBtn" aria-label="Import calendar backup" title="Import backup" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 21V9m0 0l-4 4m4-4l4 4M4 5v-2a2 2 0 012-2h12a2 2 0 012 2v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,4)"/></svg>
+        </button>
+        <input type="file" id="importFileInput" accept="application/json" hidden />
+        <button class="add-event-btn" id="addEventBtn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add Event
+        </button>
+      </div>
+    </header>
+
+    <div class="body-row">
+      <aside class="today-panel" id="todayPanel">
+        <div class="today-panel-inner">
+          <div class="today-panel-header">
+            <div>
+              <div class="day-panel-weekday" id="todayPanelLabel">Today</div>
+              <div class="day-panel-date" id="todayPanelDate">July 27, 2026</div>
+            </div>
+            <div class="day-panel-actions">
+              <button class="icon-btn" id="todayPanelAddBtn" aria-label="Add event on this day" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+              <button class="icon-btn" id="closeTodayPanelBtn" aria-label="Hide panel" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <ul class="event-list" id="todayEventList"></ul>
+          <p class="empty-state" id="todayEmptyState">Nothing scheduled today.</p>
+
+          <div class="sidebar-mini-cal">
+            <div class="mini-cal-header">
+              <button type="button" class="mini-cal-nav" id="sidebarCalPrev" aria-label="Previous month">&lsaquo;</button>
+              <span id="sidebarCalTitle">Month Year</span>
+              <button type="button" class="mini-cal-nav" id="sidebarCalNext" aria-label="Next month">&rsaquo;</button>
+            </div>
+            <div class="mini-cal-weekdays">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div class="mini-cal-grid" id="sidebarCalGrid"></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="calendar-wrap">
+        <section class="calendar-card" id="monthView" aria-label="Calendar">
+          <div class="cal-header">
+            <button class="nav-btn" id="prevBtn" aria-label="Previous month" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+
+            <div class="month-title-wrap">
+              <h1 id="monthTitle">Month Year</h1>
+              <button class="today-pill" id="todayBtn" type="button">Today</button>
+            </div>
+
+            <button class="nav-btn" id="nextBtn" aria-label="Next month" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <div class="weekdays" id="weekdaysRow"></div>
+          <div class="days-grid" id="daysGrid"></div>
+        </section>
+
+        <section class="calendar-card day-view-card" id="dayView" aria-label="Day view" hidden>
+          <div class="cal-header">
+            <button class="nav-btn" id="dayPrevBtn" aria-label="Previous day" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+
+            <div class="month-title-wrap">
+              <h1 id="dayViewTitle">Weekday, Month Day</h1>
+              <button class="today-pill" id="dayTodayBtn" type="button">Today</button>
+            </div>
+
+            <button class="nav-btn" id="dayNextBtn" aria-label="Next day" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <div class="day-view-body">
+            <div class="day-view-allday" id="dayViewAllDay"></div>
+            <div class="day-view-timeline" id="dayViewTimeline"></div>
+          </div>
+        </section>
+
+        <section class="calendar-card tracked-goals-card" id="trackedGoalsView" aria-label="Tracked goals" hidden>
+          <div class="cal-header">
+            <div class="month-title-wrap" style="margin: 0 auto;">
+              <h1>Tracked Goals</h1>
+            </div>
+          </div>
+          <div class="tracked-goals-body" id="trackedGoalsBody"></div>
+          <p class="empty-state" id="trackedGoalsEmptyState">No tracked goals yet. Add a Goal and check "Tracked Goal" to see it here.</p>
+        </section>
+      </main>
+    </div>
+
+    <!-- Add event modal -->
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="add-modal" id="addModal" aria-hidden="true">
+      <div class="add-modal-inner">
+        <div class="add-modal-header">
+          <h2 id="addModalTitle">Add Event</h2>
+          <button class="icon-btn" id="closeModalBtn" aria-label="Close" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <form id="addForm" novalidate>
+          <div class="field-group date-field-group">
+            <label class="field-label" for="formDate">Date</label>
+            <div class="date-input-row">
+              <input type="date" id="formDate" required />
+              <button type="button" class="mini-cal-toggle" id="miniCalToggle" aria-label="Pick date from calendar">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+
+            <div class="mini-calendar" id="miniCalendar">
+              <div class="mini-cal-header">
+                <button type="button" class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">&lsaquo;</button>
+                <span id="miniCalTitle">Month Year</span>
+                <button type="button" class="mini-cal-nav" id="miniCalNext" aria-label="Next month">&rsaquo;</button>
+              </div>
+              <div class="mini-cal-weekdays">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              </div>
+              <div class="mini-cal-grid" id="miniCalGrid"></div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <span class="field-label">Type</span>
+            <div class="type-picker" id="typePicker">
+              <button type="button" class="type-btn type-routine" data-type="routine">Daily Routine</button>
+              <button type="button" class="type-btn type-event" data-type="event">Event</button>
+              <button type="button" class="type-btn type-goal" data-type="goal">Goal</button>
+            </div>
+          </div>
+
+          <div class="field-group" id="repeatModeGroup" hidden>
+            <span class="field-label">Repeat</span>
+            <div class="segmented" id="repeatMode">
+              <button type="button" class="seg-btn" data-repeat="daily">Every day</button>
+              <button type="button" class="seg-btn" data-repeat="weekly">Weekly</button>
+              <button type="button" class="seg-btn" data-repeat="cycle">Forever (cycle)</button>
+            </div>
+            <p class="hint" id="repeatHint"></p>
+          </div>
+
+          <div class="field-group" id="timeFieldWrap" hidden>
+            <label class="field-label" for="formTime">Time (optional)</label>
+            <input type="time" id="formTime" />
+          </div>
+
+          <div class="field-group" id="goalRepeatGroup" hidden>
+            <span class="field-label">Frequency</span>
+            <div class="segmented goal-freq" id="goalFreqMode">
+              <button type="button" class="seg-btn" data-freq="daily">Daily</button>
+              <button type="button" class="seg-btn" data-freq="weekly">Weekly</button>
+              <button type="button" class="seg-btn" data-freq="monthly">Monthly</button>
+              <button type="button" class="seg-btn" data-freq="yearly">Yearly</button>
+              <button type="button" class="seg-btn" data-freq="untilDate">Until date</button>
+              <button type="button" class="seg-btn" data-freq="untilComplete" id="untilCompleteBtn">Until completion</button>
+              <button type="button" class="seg-btn" data-freq="untilCompletions" id="untilCompletionsBtn" hidden>Until completions</button>
+            </div>
+            <p class="hint" id="goalFreqHint">Stays through the rest of the day, starting from the date above.</p>
+
+            <div class="field-group goal-sub-field" id="goalUntilDateWrap" hidden>
+              <label class="field-label" for="goalUntilDateInput">Until date</label>
+              <input type="date" id="goalUntilDateInput" />
+            </div>
+
+            <div class="field-group goal-sub-field" id="goalUntilCompletionsWrap" hidden>
+              <label class="field-label" for="goalUntilCompletionsInput">Target completions</label>
+              <input type="number" id="goalUntilCompletionsInput" min="1" max="1000" placeholder="e.g. 30" />
+            </div>
+          </div>
+
+          <div class="field-group" id="singleTextWrap" hidden>
+            <label class="field-label" for="formText" id="singleTextLabel">Description</label>
+            <input type="text" id="formText" maxlength="120" placeholder="What's this for?" autocomplete="off" />
+          </div>
+
+          <div class="field-group" id="trackedGoalWrap" hidden>
+            <label class="checkbox-field">
+              <input type="checkbox" id="trackedGoalCheckbox" />
+              <span>Tracked Goal</span>
+            </label>
+          </div>
+
+          <div class="field-group" id="dailyTaskWrap" hidden>
+            <label class="field-label" for="formDailyTask">Daily task</label>
+            <input type="text" id="formDailyTask" maxlength="120" placeholder="e.g. Under 2 hours" autocomplete="off" />
+          </div>
+
+          <div class="field-group" id="eventRepeatGroup" hidden>
+            <span class="field-label">Repeat on</span>
+            <div class="weekday-picker" id="eventWeekdayPicker">
+              <button type="button" class="weekday-btn" data-day="0">Su</button>
+              <button type="button" class="weekday-btn" data-day="1">Mo</button>
+              <button type="button" class="weekday-btn" data-day="2">Tu</button>
+              <button type="button" class="weekday-btn" data-day="3">We</button>
+              <button type="button" class="weekday-btn" data-day="4">Th</button>
+              <button type="button" class="weekday-btn" data-day="5">Fr</button>
+              <button type="button" class="weekday-btn" data-day="6">Sa</button>
+            </div>
+
+            <div class="weeks-row">
+              <span>Repeat for</span>
+              <input type="number" id="eventWeeksInput" min="1" max="208" placeholder="4" />
+              <span>weeks</span>
+            </div>
+
+            <div class="event-repeat-actions">
+              <button type="button" class="event-forever-btn" id="eventForeverBtn">Repeat Forever</button>
+              <button type="button" class="multi-day-btn" id="multiDayBtn">Pick Multiple Days</button>
+            </div>
+          </div>
+
+          <div class="field-group" id="cycleFieldWrap" hidden>
+            <span class="field-label">Cycle, in order &mdash; repeats forever</span>
+            <div class="cycle-items" id="cycleItems"></div>
+            <button type="button" class="add-cycle-btn" id="addCycleItemBtn">+ Add day</button>
+          </div>
+
+          <div class="field-group" id="colorPickerWrap" hidden>
+            <span class="field-label">Color</span>
+            <div class="color-picker-row">
+              <button type="button" class="color-swatch auto-swatch active" id="autoColorBtn">Auto</button>
+              <label class="custom-color-swatch" for="customColorInput">
+                <input type="color" id="customColorInput" value="#c8555f" />
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group" id="favorWrap" hidden>
+            <span class="field-label">Priority in month view: <span id="favorValueLabel">0</span></span>
+            <input type="range" id="favorSlider" class="favor-slider" min="0" max="10" step="1" value="0" />
+            <div class="favor-slider-labels">
+              <span>0 &middot; Default</span>
+              <span>10 &middot; Favor most</span>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="delete-item-btn" id="deleteItemBtn" hidden>Delete</button>
+            <button type="submit" class="save-btn" id="saveBtn" disabled>Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Multi-day picking confirm bar -->
+    <div class="multiday-bar" id="multiDayBar">
+      <input type="text" id="multiDayTextInput" class="multiday-text-input" maxlength="120" placeholder="Description" autocomplete="off" />
+      <span id="multiDayCount">0 days selected</span>
+      <div class="multiday-bar-actions">
+        <button type="button" class="multiday-cancel-btn" id="multiDayCancelBtn">Cancel</button>
+        <button type="button" class="multiday-save-btn" id="multiDaySaveBtn" disabled>Save</button>
+      </div>
+    </div>
+
+    <!-- Multi-day group action prompt -->
+    <div class="modal-backdrop" id="groupPromptBackdrop"></div>
+    <div class="group-prompt-modal" id="groupPromptModal" role="alertdialog" aria-hidden="true">
+      <p class="group-prompt-message" id="groupPromptMessage"></p>
+      <div class="group-prompt-actions">
+        <button type="button" class="group-prompt-cancel-btn" id="groupPromptCancelBtn">Cancel</button>
+        <button type="button" class="group-prompt-this-btn" id="groupPromptThisBtn">Just this day</button>
+        <button type="button" class="group-prompt-all-btn" id="groupPromptAllBtn">All days</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
