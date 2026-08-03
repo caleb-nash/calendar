@@ -100,6 +100,7 @@
   const goalRepeatGroup = document.getElementById("goalRepeatGroup");
   const goalFreqMode = document.getElementById("goalFreqMode");
   const goalFreqHint = document.getElementById("goalFreqHint");
+  const untilCompleteBtn = document.getElementById("untilCompleteBtn");
   const untilCompletionsBtn = document.getElementById("untilCompletionsBtn");
   const goalUntilDateWrap = document.getElementById("goalUntilDateWrap");
   const goalUntilDateInput = document.getElementById("goalUntilDateInput");
@@ -149,6 +150,7 @@
     monthly: "Stays through the rest of that month, starting from the date above.",
     yearly: "Stays through the rest of that year, starting from the date above.",
     untilDate: "Stays every day until the date you pick below.",
+    untilComplete: "Stays every day, with no end date, until you mark it complete.",
     untilCompletions: "Stays every day until you reach the target number of completions below.",
   };
 
@@ -289,6 +291,7 @@
 
   function goalDurationText(it) {
     if (it.repeat === "untilCompletions") return "Tracked goal — until target completions";
+    if (it.repeat === "untilComplete") return "Goal — until you mark it complete";
     if (!it.endDate) return "";
     const labels = { weekly: "Weekly goal", monthly: "Monthly goal", yearly: "Yearly goal", untilDate: "Goal" };
     const label = labels[it.repeat] || "Goal";
@@ -302,6 +305,7 @@
     if (routine.repeat === "monthly") return new Date(start.getFullYear(), start.getMonth() + 1, 0);
     if (routine.repeat === "yearly") return new Date(start.getFullYear(), 11, 31);
     if (routine.repeat === "untilDate") return routine.untilDate ? parseDateKey(routine.untilDate) : start;
+    if (routine.repeat === "untilComplete") return null;
     if (routine.repeat === "untilCompletions") return null;
     return undefined;
   }
@@ -366,7 +370,7 @@
           id: r.id,
           type: r.type || "routine",
           time: occ.time,
-          text: tracked ? r.dailyTask || r.text : occ.text,
+          text: tracked ? `${r.text} (${r.dailyTask || ""})` : occ.text,
           source: "routine",
           repeat: r.repeat,
           endDate: occ.endDate,
@@ -882,6 +886,7 @@
     goalUntilDateInput.value = "";
     goalUntilCompletionsInput.value = "";
     untilCompletionsBtn.hidden = true;
+    untilCompleteBtn.hidden = false;
     trackedGoalWrap.hidden = true;
     dailyTaskWrap.hidden = true;
     goalUntilDateWrap.hidden = true;
@@ -949,7 +954,12 @@
     const tracked = trackedGoalCheckbox.checked;
     dailyTaskWrap.hidden = !tracked;
     untilCompletionsBtn.hidden = !tracked;
+    untilCompleteBtn.hidden = tracked;
     if (!tracked && state.goalFrequency === "untilCompletions") {
+      state.goalFrequency = "daily";
+      goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.toggle("active", b.dataset.freq === "daily"));
+    }
+    if (tracked && state.goalFrequency === "untilComplete") {
       state.goalFrequency = "daily";
       goalFreqMode.querySelectorAll(".seg-btn[data-freq]").forEach((b) => b.classList.toggle("active", b.dataset.freq === "daily"));
     }
@@ -1509,6 +1519,11 @@
           if (!Array.isArray(routine.completedDates)) routine.completedDates = [];
           const key = currentPanelKey();
           if (!routine.completedDates.includes(key)) routine.completedDates.push(key);
+          if (routine.repeat === "untilCompletions" && routine.completedDates.length >= (routine.targetCompletions || 1)) {
+            deleteRoutine(id);
+            renderAllViews();
+            return;
+          }
           saveData();
         }
         renderTrackedGoalsView();
