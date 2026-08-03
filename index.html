@@ -263,11 +263,11 @@
           </div>
 
           <div class="field-group" id="favorWrap" hidden>
-            <span class="field-label">Priority in month view</span>
-            <div class="segmented favor-picker" id="favorPicker">
-              <button type="button" class="seg-btn" data-favor="unfavor">Dont Favor</button>
-              <button type="button" class="seg-btn active" data-favor="none">Nothing</button>
-              <button type="button" class="seg-btn" data-favor="favor">Favor</button>
+            <span class="field-label">Priority in month view: <span id="favorValueLabel">0</span></span>
+            <input type="range" id="favorSlider" class="favor-slider" min="0" max="10" step="1" value="0" />
+            <div class="favor-slider-labels">
+              <span>0 &middot; Default</span>
+              <span>10 &middot; Favor most</span>
             </div>
           </div>
 
