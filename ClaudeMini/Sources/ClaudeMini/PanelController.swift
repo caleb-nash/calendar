@@ -149,11 +149,15 @@ final class PanelController: NSObject {
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
             await confirmOnScreen(retried: true)
-        } else {
+        } else if !panel.isOnActiveSpace {
+            // Definitely not showing on this Space: hide so it can't swallow typing invisibly.
             let appName = previousApp?.localizedName ?? "this app"
             Log.window.error("Presentation blocked over \(appName, privacy: .public)")
             hide()
             onPresentationBlocked?(appName)
+        } else {
+            // On this Space but reported as covered. That report can be wrong, so leave the panel up.
+            Log.window.notice("Panel reported as covered; leaving it open")
         }
     }
 
