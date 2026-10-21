@@ -18,6 +18,19 @@ final class PanelController: NSObject {
     private var faviconCache: [String: NSImage] = [:]
     private var faviconRequests: Set<String> = []
     private let addressField: NSTextField
+
+    /// Chrome-style profiles for the Web panel: each has its own cookies, so its own Google
+    /// sign-ins and default account. The chosen profile is remembered across restarts.
+    private struct Profile: Codable {
+        var id: String
+        var name: String
+    }
+    private static let defaultProfileID = "default"
+    private static let profilesKey = "webProfiles"
+    private static let currentProfileKey = "webCurrentProfile"
+    private var profiles: [Profile] = []
+    private var currentProfileID = PanelController.defaultProfileID
+    private let profileButton: NSButton
     private var popupWindows: [NSWindow] = []
     /// The app that was frontmost when the panel opened, so focus can go back to it.
     private var previousApp: NSRunningApplication?
@@ -30,6 +43,7 @@ final class PanelController: NSObject {
     init(site: Site, cornerOffset: CGFloat = 0) {
         self.site = site
         addressField = NSTextField()
+        profileButton = NSButton()
         webContainer = NSView()
         tabStrip = NSStackView()
         panel = FloatingPanel(contentRect: NSRect(origin: .zero, size: site.defaultSize))
@@ -40,6 +54,10 @@ final class PanelController: NSObject {
 
         super.init()
 
+        if site.hasTabs {
+            loadProfiles()
+            configuration.websiteDataStore = dataStore(for: currentProfileID)
+        }
         tabs = [makeWebView(configuration: configuration)]
         panel.onEscape = { [weak self] in self?.hide() }
         buildLayout()
@@ -141,7 +159,7 @@ final class PanelController: NSObject {
 
     func diagnostics() -> String {
         """
-        \(site.title) panel (\(tabs.count) tab(s)): visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
+        \(site.title) panel (\(tabs.count) tab(s), profile \(site.hasTabs ? currentProfile.name : "-")): visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
         occlusionVisible=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) \
         collectionBehavior=\(panel.collectionBehavior.rawValue) frame=\(NSStringFromRect(panel.frame))
         Previous app: \(previousApp?.bundleIdentifier ?? "none")
@@ -487,6 +505,137 @@ final class PanelController: NSObject {
         return nil
     }
 
+    // MARK: - Profiles
+
+    private var currentProfile: Profile {
+        profiles.first { $0.id == currentProfileID } ?? profiles[0]
+    }
+
+    private func loadProfiles() {
+        let defaults = UserDefaults.standard
+        if let data = defaults.data(forKey: Self.profilesKey),
+           let saved = try? JSONDecoder().decode([Profile].self, from: data), !saved.isEmpty {
+            profiles = saved
+        } else {
+            profiles = [Profile(id: Self.defaultProfileID, name: "Default")]
+        }
+        if let savedID = defaults.string(forKey: Self.currentProfileKey), profiles.contains(where: { $0.id == savedID }) {
+            currentProfileID = savedID
+        } else {
+            currentProfileID = profiles[0].id
+        }
+    }
+
+    private func saveProfiles() {
+        let defaults = UserDefaults.standard
+        defaults.set(try? JSONEncoder().encode(profiles), forKey: Self.profilesKey)
+        defaults.set(currentProfileID, forKey: Self.currentProfileKey)
+    }
+
+    /// The Default profile uses the app's original storage, so existing sign-ins carry over.
+    private func dataStore(for profileID: String) -> WKWebsiteDataStore {
+        if profileID != Self.defaultProfileID, #available(macOS 14.0, *), let uuid = UUID(uuidString: profileID) {
+            return WKWebsiteDataStore(forIdentifier: uuid)
+        }
+        return .default()
+    }
+
+    private func updateProfileButton() {
+        profileButton.title = currentProfile.name
+        profileButton.toolTip = "Profile: \(currentProfile.name)"
+    }
+
+    @objc private func showProfileMenu(_ sender: NSButton) {
+        let menu = NSMenu()
+        for profile in profiles {
+            let item = menu.addItem(withTitle: profile.name, action: #selector(profileChosen(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = profile.id
+            item.state = profile.id == currentProfileID ? .on : .off
+        }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Add Profile…", action: #selector(addProfile), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Rename \(currentProfile.name)…", action: #selector(renameProfile), keyEquivalent: "").target = self
+        if profiles.count > 1 {
+            menu.addItem(withTitle: "Remove \(currentProfile.name)", action: #selector(removeProfile), keyEquivalent: "").target = self
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+    }
+
+    @objc private func profileChosen(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, id != currentProfileID else { return }
+        switchProfile(to: id, startURL: site.homeURL)
+    }
+
+    @objc func addProfile() {
+        guard #available(macOS 14.0, *) else {
+            let alert = NSAlert()
+            alert.messageText = "Profiles need macOS 14 (Sonoma) or later"
+            alert.runModal()
+            return
+        }
+        guard let name = askForName(title: "New profile", defaultValue: "Profile \(profiles.count + 1)") else { return }
+        let profile = Profile(id: UUID().uuidString, name: name)
+        profiles.append(profile)
+        // A new profile starts signed out, so go straight to Google sign-in.
+        switchProfile(to: profile.id, startURL: URL(string: "https://accounts.google.com/ServiceLogin?continue=https://www.google.com")!)
+    }
+
+    @objc private func renameProfile() {
+        guard let name = askForName(title: "Rename profile", defaultValue: currentProfile.name),
+              let index = profiles.firstIndex(where: { $0.id == currentProfileID }) else { return }
+        profiles[index].name = name
+        saveProfiles()
+        updateProfileButton()
+    }
+
+    /// Removes the profile from the list; its sign-ins are kept on disk in case you add it back.
+    @objc private func removeProfile() {
+        guard profiles.count > 1 else { return }
+        let removed = currentProfile
+        let alert = NSAlert()
+        alert.messageText = "Remove the profile “\(removed.name)”?"
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        profiles.removeAll { $0.id == removed.id }
+        switchProfile(to: profiles[0].id, startURL: site.homeURL)
+    }
+
+    private func askForName(title: String, defaultValue: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = defaultValue
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
+    }
+
+    /// Swaps every tab over to the chosen profile's storage, like opening a different Chrome profile.
+    private func switchProfile(to id: String, startURL: URL) {
+        currentProfileID = id
+        saveProfiles()
+        updateProfileButton()
+        configuration.websiteDataStore = dataStore(for: id)
+        for tab in tabs {
+            tabObservations[ObjectIdentifier(tab)] = nil
+            tab.removeFromSuperview()
+        }
+        tabs = [makeWebView(configuration: configuration)]
+        currentTab = 0
+        webView.load(URLRequest(url: startURL))
+        installCurrentTab()
+        Log.window.info("Switched to profile \(self.currentProfile.name, privacy: .public)")
+        show()
+    }
+
     // MARK: - Layout
 
     private func buildLayout() {
@@ -519,6 +668,19 @@ final class PanelController: NSObject {
         } else {
             leftButtons.append(headerButton("chevron.right", tip: "Forward", action: #selector(goForward)))
             leftButtons.append(headerButton("house", tip: "Home", action: #selector(goHome)))
+            if site.hasTabs {
+                profileButton.image = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: "Profile")
+                profileButton.imagePosition = .imageLeading
+                profileButton.isBordered = false
+                profileButton.font = .systemFont(ofSize: 11, weight: .medium)
+                profileButton.contentTintColor = .controlAccentColor
+                profileButton.lineBreakMode = .byTruncatingTail
+                profileButton.target = self
+                profileButton.action = #selector(showProfileMenu(_:))
+                profileButton.widthAnchor.constraint(lessThanOrEqualToConstant: 110).isActive = true
+                updateProfileButton()
+                rightButtons.append(profileButton)
+            }
             if site.hasAddressBar {
                 rightButtons.append(headerButton("arrow.up.forward.app", tip: "Open in Chrome", action: #selector(openInChrome)))
             }

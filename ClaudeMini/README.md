@@ -49,6 +49,7 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 
 ### Google accounts (⌥M window)
 
+- **Profiles (like Chrome):** click the 👤 profile button at the top right of the ⌥M window. Each profile keeps its own sign-ins, so each has its own default Google account. Use **Add Profile…** to make one (it opens Google sign-in), then pick a profile from the same menu to switch. Claude Mini remembers the profile you last used. Needs macOS 14 or later.
 - **✦ → Add Google Account…** signs in another account. Switch between them from your profile picture on any Google page.
 - **✦ → Change Default Google Account…** signs every Google account out of Claude Mini. Sign in with the account you want as the default **first**, then add the others. The default stays the same after restarts.
 
