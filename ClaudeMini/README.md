@@ -5,8 +5,8 @@ Small floating windows for macOS, each with its own shortcut. Press the shortcut
 | Shortcut | Window |
 |---|---|
 | **⌥L** (Option+L) | Claude |
-| **⌥M** (Option+M) | Web: a mini browser with an address bar. The ↗ button opens the current page in Google Chrome. |
-| **⌥N** (Option+N) | Roblox (roblox.com). **Play** launches the Roblox app, because games can't run inside a web page. |
+| **⌥M** (Option+M) | Web: a mini browser with Chrome-style tabs and an address bar. The ↗ button opens the current page in Google Chrome. |
+| **⌥N** (Option+N) | Roblox. While a game is open, ⌥N shows/hides the Roblox app. Otherwise it opens roblox.com to pick a game; **Play** launches the Roblox app (games can't run inside a web page). |
 
 ```
 ┌──────────────────────────────────┐
@@ -56,6 +56,9 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 | ⌘N | New chat (Claude) or home page (Web, Roblox) |
 | ⌘E | Chat history (Claude) |
 | ⌘L | Jump to the address bar (Web) |
+| ⌘T | New tab (Web) |
+| ⌘W | Close tab (Web) or hide the window |
+| ⌃Tab / ⌃⇧Tab | Next / previous tab (also ⌘⇧] / ⌘⇧[) |
 | ⌘[ / ⌘] | Back / forward |
 | ⌘R | Reload |
 | ⌘= / ⌘- / ⌘0 | Bigger / smaller / reset text |

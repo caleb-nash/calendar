@@ -147,7 +147,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addItem(to: chatMenu, "Back", #selector(goBack), key: "[", target: self)
         addItem(to: chatMenu, "Forward", #selector(goForward), key: "]", target: self)
         addItem(to: chatMenu, "Reload", #selector(reload), key: "r", target: self)
-        addItem(to: chatMenu, "Hide", #selector(hidePanel), key: "w", target: self)
+        addItem(to: chatMenu, "New Tab", #selector(newTab), key: "t", target: self)
+        addItem(to: chatMenu, "Close Tab / Hide", #selector(closeTabOrHide), key: "w", target: self)
+        addItem(to: chatMenu, "Next Tab", #selector(nextTab), key: "\t", target: self).keyEquivalentModifierMask = [.control]
+        addItem(to: chatMenu, "Previous Tab", #selector(previousTab), key: "\t", target: self).keyEquivalentModifierMask = [.control, .shift]
+        addItem(to: chatMenu, "Next Tab", #selector(nextTab), key: "}", target: self)
+        addItem(to: chatMenu, "Previous Tab", #selector(previousTab), key: "{", target: self)
         chatMenu.addItem(.separator())
         addItem(to: chatMenu, "Zoom In", #selector(zoomIn), key: "=", target: self)
         addItem(to: chatMenu, "Zoom Out", #selector(zoomOut), key: "-", target: self)
@@ -162,7 +167,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func goBack() { activeController.goBack() }
     @objc private func goForward() { activeController.goForward() }
     @objc private func reload() { activeController.reload() }
-    @objc private func hidePanel() { activeController.hide() }
+    @objc private func newTab() { activeController.newTab() }
+    @objc private func closeTabOrHide() { activeController.closeTabOrHide() }
+    @objc private func nextTab() { activeController.nextTab() }
+    @objc private func previousTab() { activeController.previousTab() }
     @objc private func zoomIn() { activeController.zoomIn() }
     @objc private func zoomOut() { activeController.zoomOut() }
     @objc private func resetZoom() { activeController.resetZoom() }

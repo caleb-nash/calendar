@@ -18,6 +18,8 @@ struct Site {
     let hasAddressBar: Bool
 
     var isClaude: Bool { id == "claude" }
+    /// Only the browser panel shows Chrome-style tabs.
+    var hasTabs: Bool { hasAddressBar }
 
     func isInternal(_ url: URL) -> Bool {
         guard let internalHosts else { return true }
@@ -54,6 +56,8 @@ enum Config {
         hasAddressBar: false)
 
     static let sites = [claude, web, roblox]
+    /// The app that actually runs Roblox games.
+    static let robloxPlayerBundleID = "com.roblox.RobloxPlayer"
 
     static let minSize = NSSize(width: 320, height: 380)
 

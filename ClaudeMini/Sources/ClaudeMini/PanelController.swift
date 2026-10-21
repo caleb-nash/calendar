@@ -7,7 +7,16 @@ import WebKit
 final class PanelController: NSObject {
     let site: Site
     let panel: FloatingPanel
-    let webView: WKWebView
+    /// Open tabs. Only the Web panel shows a tab strip; the others always have exactly one.
+    private var tabs: [WKWebView] = []
+    private var currentTab = 0
+    var webView: WKWebView { tabs[currentTab] }
+    private let configuration: WKWebViewConfiguration
+    private let webContainer: NSView
+    private let tabStrip: NSStackView
+    private var tabObservations: [ObjectIdentifier: [NSKeyValueObservation]] = [:]
+    private var faviconCache: [String: NSImage] = [:]
+    private var faviconRequests: Set<String> = []
     private let addressField: NSTextField
     private var popupWindows: [NSWindow] = []
     /// The app that was frontmost when the panel opened, so focus can go back to it.
@@ -21,26 +30,20 @@ final class PanelController: NSObject {
     init(site: Site, cornerOffset: CGFloat = 0) {
         self.site = site
         addressField = NSTextField()
+        webContainer = NSView()
+        tabStrip = NSStackView()
         panel = FloatingPanel(contentRect: NSRect(origin: .zero, size: site.defaultSize))
 
-        let configuration = WKWebViewConfiguration()
+        configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default() // keeps you signed in between launches
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
-        webView = WKWebView(frame: .zero, configuration: configuration)
 
         super.init()
 
-        webView.customUserAgent = Config.userAgent
-        webView.navigationDelegate = self
-        webView.uiDelegate = self
-        webView.allowsBackForwardNavigationGestures = true
-        webView.setValue(false, forKey: "drawsBackground") // avoid a white flash in dark mode
-        if let zoom = UserDefaults.standard.object(forKey: zoomKey) as? Double {
-            webView.pageZoom = CGFloat(zoom)
-        }
-
+        tabs = [makeWebView(configuration: configuration)]
         panel.onEscape = { [weak self] in self?.hide() }
         buildLayout()
+        installCurrentTab()
 
         let restored = panel.setFrameUsingName(frameName)
         panel.setFrameAutosaveName(frameName)
@@ -54,10 +57,30 @@ final class PanelController: NSObject {
     // MARK: - Showing and hiding
 
     func toggle() {
+        // Roblox games only run in the Roblox app, so while a game is open ⌥N shows/hides that
+        // app; the roblox.com panel is for picking a game when it isn't running.
+        if site.id == Config.roblox.id, let player = Self.runningRobloxPlayer() {
+            if player.isActive {
+                Log.window.info("Hiding Roblox player")
+                player.hide()
+            } else {
+                Log.window.info("Bringing Roblox player to front")
+                hide()
+                player.unhide()
+                player.activate(options: [])
+            }
+            return
+        }
         if panel.isVisible && panel.isKeyWindow {
             hide()
         } else {
             show()
+        }
+    }
+
+    private static func runningRobloxPlayer() -> NSRunningApplication? {
+        NSWorkspace.shared.runningApplications.first {
+            $0.bundleIdentifier == Config.robloxPlayerBundleID || $0.localizedName == "Roblox"
         }
     }
 
@@ -118,7 +141,7 @@ final class PanelController: NSObject {
 
     func diagnostics() -> String {
         """
-        \(site.title) panel: visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
+        \(site.title) panel (\(tabs.count) tab(s)): visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
         occlusionVisible=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) \
         collectionBehavior=\(panel.collectionBehavior.rawValue) frame=\(NSStringFromRect(panel.frame))
         Previous app: \(previousApp?.bundleIdentifier ?? "none")
@@ -206,7 +229,9 @@ final class PanelController: NSObject {
 
     private func setZoom(_ zoom: CGFloat) {
         let clamped = min(max(zoom, 0.6), 1.6)
-        webView.pageZoom = clamped
+        for tab in tabs {
+            tab.pageZoom = clamped
+        }
         UserDefaults.standard.set(Double(clamped), forKey: zoomKey)
     }
 
@@ -230,6 +255,206 @@ final class PanelController: NSObject {
             }
             Log.window.notice("Message box not found; is the page signed in and loaded?")
         }
+    }
+
+    // MARK: - Tabs
+
+    private func makeWebView(configuration: WKWebViewConfiguration) -> WKWebView {
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        view.customUserAgent = Config.userAgent
+        view.navigationDelegate = self
+        view.uiDelegate = self
+        view.allowsBackForwardNavigationGestures = true
+        view.setValue(false, forKey: "drawsBackground") // avoid a white flash in dark mode
+        if let zoom = UserDefaults.standard.object(forKey: zoomKey) as? Double {
+            view.pageZoom = CGFloat(zoom)
+        }
+        if site.hasTabs {
+            // Keep tab titles, icons and the address bar in sync, including in single-page apps.
+            tabObservations[ObjectIdentifier(view)] = [
+                view.observe(\.title) { [weak self] _, _ in Task { @MainActor in self?.tabsChanged() } },
+                view.observe(\.url) { [weak self] _, _ in Task { @MainActor in self?.tabsChanged() } },
+            ]
+        }
+        return view
+    }
+
+    /// ⌘T. Outside the Web panel it behaves like ⌘N.
+    @objc func newTab() {
+        guard site.hasTabs else { return newChat() }
+        addTab(loading: site.homeURL)
+        show()
+        focusAddressBar()
+    }
+
+    /// ⌘W: closes the current tab in the Web panel, hides the other panels.
+    @objc func closeTabOrHide() {
+        guard site.hasTabs else { return hide() }
+        closeTab(at: currentTab)
+    }
+
+    @objc func nextTab() {
+        guard tabs.count > 1 else { return }
+        selectTab((currentTab + 1) % tabs.count)
+    }
+
+    @objc func previousTab() {
+        guard tabs.count > 1 else { return }
+        selectTab((currentTab - 1 + tabs.count) % tabs.count)
+    }
+
+    /// Opens a tab right after the current one, like Chrome. Pass `configuration` when WebKit
+    /// asks for a new window so the page keeps its link to the opener.
+    @discardableResult
+    private func addTab(loading url: URL?, configuration: WKWebViewConfiguration? = nil) -> WKWebView {
+        let view = makeWebView(configuration: configuration ?? self.configuration)
+        tabs.insert(view, at: currentTab + 1)
+        selectTab(currentTab + 1)
+        if let url { view.load(URLRequest(url: url)) }
+        return view
+    }
+
+    private func closeTab(at index: Int) {
+        let view = tabs.remove(at: index)
+        tabObservations[ObjectIdentifier(view)] = nil
+        view.removeFromSuperview()
+        if tabs.isEmpty {
+            // Closing the last tab hides the panel and leaves a fresh start page for next time.
+            tabs = [makeWebView(configuration: configuration)]
+            webView.load(URLRequest(url: site.homeURL))
+            currentTab = 0
+            installCurrentTab()
+            hide()
+            return
+        }
+        if index < currentTab || currentTab >= tabs.count {
+            currentTab -= 1
+        }
+        installCurrentTab()
+    }
+
+    private func selectTab(_ index: Int) {
+        currentTab = index
+        installCurrentTab()
+    }
+
+    /// Puts the current tab's web view on screen and refreshes the tab strip and address bar.
+    private func installCurrentTab() {
+        for view in webContainer.subviews where view !== webView {
+            view.removeFromSuperview()
+        }
+        if webView.superview !== webContainer {
+            webView.translatesAutoresizingMaskIntoConstraints = false
+            webContainer.addSubview(webView)
+            NSLayoutConstraint.activate([
+                webView.topAnchor.constraint(equalTo: webContainer.topAnchor),
+                webView.leadingAnchor.constraint(equalTo: webContainer.leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: webContainer.trailingAnchor),
+                webView.bottomAnchor.constraint(equalTo: webContainer.bottomAnchor),
+            ])
+        }
+        tabsChanged()
+        if panel.isKeyWindow {
+            panel.makeFirstResponder(webView)
+        }
+    }
+
+    private func tabsChanged() {
+        guard site.hasTabs else { return }
+        if panel.firstResponder !== addressField.currentEditor() {
+            addressField.stringValue = webView.url?.absoluteString ?? ""
+        }
+        rebuildTabStrip()
+    }
+
+    private func rebuildTabStrip() {
+        for view in tabStrip.arrangedSubviews {
+            view.removeFromSuperview()
+        }
+        for (index, tab) in tabs.enumerated() {
+            tabStrip.addArrangedSubview(makeTabView(for: tab, index: index, selected: index == currentTab))
+        }
+        tabStrip.addArrangedSubview(headerButton("plus", tip: "New tab (⌘T)", action: #selector(newTab)))
+    }
+
+    private func makeTabView(for tab: WKWebView, index: Int, selected: Bool) -> NSView {
+        let globe = NSImage(systemSymbolName: "globe", accessibilityDescription: nil) ?? NSImage()
+        let icon = NSImageView(image: favicon(for: tab.url) ?? globe)
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.contentTintColor = .secondaryLabelColor
+
+        let tabTitle = (tab.title?.isEmpty == false ? tab.title : nil) ?? tab.url?.host ?? "New Tab"
+        let titleButton = NSButton(title: tabTitle, target: self, action: #selector(tabClicked(_:)))
+        titleButton.tag = index
+        titleButton.isBordered = false
+        titleButton.font = .systemFont(ofSize: 11, weight: selected ? .medium : .regular)
+        titleButton.contentTintColor = selected ? .labelColor : .secondaryLabelColor
+        titleButton.alignment = .left
+        titleButton.lineBreakMode = .byTruncatingTail
+        titleButton.toolTip = tabTitle
+        titleButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        titleButton.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        let closeImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close tab") ?? NSImage()
+        let closeButton = NSButton(image: closeImage, target: self, action: #selector(closeTabClicked(_:)))
+        closeButton.tag = index
+        closeButton.isBordered = false
+        closeButton.toolTip = "Close tab (⌘W)"
+        closeButton.contentTintColor = .secondaryLabelColor
+        closeButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 9, weight: .semibold)
+
+        let tabView = NSStackView(views: [icon, titleButton, closeButton])
+        tabView.spacing = 5
+        tabView.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 6)
+        tabView.wantsLayer = true
+        tabView.layer?.cornerRadius = 7
+        if selected {
+            panel.effectiveAppearance.performAsCurrentDrawingAppearance {
+                tabView.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.12).cgColor
+            }
+        }
+        tabView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: 14),
+            icon.heightAnchor.constraint(equalToConstant: 14),
+            closeButton.widthAnchor.constraint(equalToConstant: 16),
+            tabView.heightAnchor.constraint(equalToConstant: 26),
+            tabView.widthAnchor.constraint(lessThanOrEqualToConstant: 180),
+            tabView.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+        ])
+        // Tabs prefer 180pt and shrink evenly when there are many.
+        let preferred = tabView.widthAnchor.constraint(equalToConstant: 180)
+        preferred.priority = .defaultLow
+        preferred.isActive = true
+        return tabView
+    }
+
+    @objc private func tabClicked(_ sender: NSButton) {
+        guard tabs.indices.contains(sender.tag) else { return }
+        selectTab(sender.tag)
+    }
+
+    @objc private func closeTabClicked(_ sender: NSButton) {
+        guard tabs.indices.contains(sender.tag) else { return }
+        closeTab(at: sender.tag)
+    }
+
+    /// Site icons for tabs, fetched once per host.
+    private func favicon(for url: URL?) -> NSImage? {
+        guard let host = url?.host else { return nil }
+        if let cached = faviconCache[host] { return cached }
+        if !faviconRequests.contains(host),
+           let iconURL = URL(string: "https://www.google.com/s2/favicons?sz=32&domain=\(host)") {
+            faviconRequests.insert(host)
+            Task {
+                if let result = try? await URLSession.shared.data(from: iconURL), let image = NSImage(data: result.0) {
+                    faviconCache[host] = image
+                    rebuildTabStrip()
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: - Layout
@@ -274,17 +499,41 @@ final class PanelController: NSObject {
         left.spacing = 2
         right.spacing = 2
 
-        for view in [header, webView, title, left, right] as [NSView] {
+        for view in [header, webContainer, title, left, right] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
-        container.addSubview(webView)
+        container.addSubview(webContainer)
         container.addSubview(header)
+
+        // Chrome-style tab row above the address bar (Web panel only).
+        var headerTop = container.topAnchor
+        if site.hasTabs {
+            let tabRow = DragHeaderView()
+            tabRow.material = .titlebar
+            tabRow.blendingMode = .withinWindow
+            tabStrip.spacing = 2
+            tabStrip.distribution = .fill
+            tabRow.translatesAutoresizingMaskIntoConstraints = false
+            tabStrip.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(tabRow)
+            tabRow.addSubview(tabStrip)
+            NSLayoutConstraint.activate([
+                tabRow.topAnchor.constraint(equalTo: container.topAnchor),
+                tabRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                tabRow.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                tabRow.heightAnchor.constraint(equalToConstant: 34),
+                tabStrip.leadingAnchor.constraint(equalTo: tabRow.leadingAnchor, constant: 8),
+                tabStrip.trailingAnchor.constraint(lessThanOrEqualTo: tabRow.trailingAnchor, constant: -8),
+                tabStrip.centerYAnchor.constraint(equalTo: tabRow.centerYAnchor),
+            ])
+            headerTop = tabRow.bottomAnchor
+        }
         header.addSubview(left)
         header.addSubview(title)
         header.addSubview(right)
 
         NSLayoutConstraint.activate([
-            header.topAnchor.constraint(equalTo: container.topAnchor),
+            header.topAnchor.constraint(equalTo: headerTop),
             header.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             header.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             header.heightAnchor.constraint(equalToConstant: 34),
@@ -298,10 +547,10 @@ final class PanelController: NSObject {
             title.leadingAnchor.constraint(greaterThanOrEqualTo: left.trailingAnchor, constant: 8),
             title.trailingAnchor.constraint(lessThanOrEqualTo: right.leadingAnchor, constant: -8),
 
-            webView.topAnchor.constraint(equalTo: header.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            webContainer.topAnchor.constraint(equalTo: header.bottomAnchor),
+            webContainer.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webContainer.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            webContainer.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         if site.hasAddressBar {
@@ -352,6 +601,9 @@ extension PanelController: WKNavigationDelegate {
         if !["http", "https", "about", "blob", "data", "file"].contains(scheme) {
             Log.window.info("Opening app link with scheme \(scheme, privacy: .public)")
             NSWorkspace.shared.open(url)
+            if site.id == Config.roblox.id {
+                hide() // get out of the way of the game that's launching
+            }
             return .cancel
         }
         // Outside links open in your normal browser.
@@ -385,10 +637,9 @@ extension PanelController: WKUIDelegate {
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = navigationAction.request.url, url.scheme?.hasPrefix("http") == true {
-            // The Web panel keeps new-tab links in the panel itself.
-            if site.internalHosts == nil {
-                webView.load(URLRequest(url: url))
-                return nil
+            // The Web panel opens new-window links as a new tab.
+            if site.hasTabs {
+                return addTab(loading: nil, configuration: configuration)
             }
             if !site.isInternal(url), !Config.isAuth(url) {
                 NSWorkspace.shared.open(url)
@@ -399,7 +650,11 @@ extension PanelController: WKUIDelegate {
     }
 
     func webViewDidClose(_ webView: WKWebView) {
-        popupWindows.first { $0.contentView === webView }?.close()
+        if site.hasTabs, let index = tabs.firstIndex(where: { $0 === webView }) {
+            closeTab(at: index)
+        } else {
+            popupWindows.first { $0.contentView === webView }?.close()
+        }
     }
 
     func webView(_ webView: WKWebView,
