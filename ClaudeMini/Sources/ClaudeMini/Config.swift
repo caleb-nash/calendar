@@ -5,10 +5,10 @@ enum Config {
     static let newChatURL = URL(string: "https://claude.ai/new")!
     static let recentsURL = URL(string: "https://claude.ai/recents")!
 
-    // Global shortcut. To use Option+Space instead: kVK_Space and optionKey.
+    // Global shortcut (Option+L). For Command+L use cmdKey; for Option+Space use kVK_Space.
     static let hotKeyCode = UInt32(kVK_ANSI_L)
-    static let hotKeyModifiers = UInt32(cmdKey)
-    static let hotKeyLabel = "⌘L"
+    static let hotKeyModifiers = UInt32(optionKey)
+    static let hotKeyLabel = "⌥L"
 
     static let defaultSize = NSSize(width: 420, height: 620)
     static let minSize = NSSize(width: 320, height: 380)

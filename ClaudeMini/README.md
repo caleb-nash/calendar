@@ -1,6 +1,6 @@
 # Claude Mini
 
-A small floating Claude window for macOS. Press **⌘L** anywhere to open it, and press **Esc** or **⌘L** again to hide it.
+A small floating Claude window for macOS. Press **⌥L** (Option+L) anywhere to open it, and press **Esc** or **⌥L** again to hide it.
 
 ```
 ┌──────────────────────────────────┐
@@ -45,7 +45,7 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 
 | Keys | Action |
 |---|---|
-| ⌘L | Open / hide (works from any app) |
+| ⌥L | Open / hide (works from any app) |
 | Esc | Hide |
 | ⌘N | New chat |
 | ⌘E | Chat history |
@@ -54,7 +54,7 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 
 ## Changing the shortcut
 
-⌘L is also the "go to address bar" shortcut in browsers. Claude Mini takes it over everywhere while it's running. To use something else, such as **⌥Space**, edit `Sources/ClaudeMini/Config.swift`:
+The shortcut is set in `Sources/ClaudeMini/Config.swift`. For example, to use **⌥Space**:
 
 ```swift
 static let hotKeyCode = UInt32(kVK_Space)
@@ -62,7 +62,7 @@ static let hotKeyModifiers = UInt32(optionKey)
 static let hotKeyLabel = "⌥Space"
 ```
 
-Then run `./build.sh install` again.
+Then run `./build.sh install` again. While Claude Mini is running, ⌥L opens it instead of typing the "¬" character.
 
 ## Notes
 
