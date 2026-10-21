@@ -16,6 +16,8 @@ echo "Built $APP"
 
 if [[ "${1:-}" == "install" ]]; then
     pkill -x ClaudeMini 2>/dev/null || true
+    # Wait for the old copy to fully quit; launching too early fails with error -600.
+    for _ in {1..20}; do pgrep -x ClaudeMini >/dev/null || break; sleep 0.25; done
     rm -rf "/Applications/Claude Mini.app"
     cp -R "$APP" /Applications/
     open "/Applications/Claude Mini.app"
