@@ -67,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addItem(to: menu, "Reload", #selector(PanelController.reload), target: panelController)
         menu.addItem(.separator())
         addItem(to: menu, "Sign In with Link from Clipboard", #selector(PanelController.openLinkFromClipboard), target: panelController)
+        if let web = controllers.first(where: { $0.site.id == Config.web.id }) {
+            addItem(to: menu, "Add Google Account…", #selector(PanelController.addGoogleAccount), target: web)
+            addItem(to: menu, "Change Default Google Account…", #selector(PanelController.changeDefaultGoogleAccount), target: web)
+        }
         addItem(to: menu, "Copy Diagnostics", #selector(copyDiagnostics), target: self)
         launchAtLoginItem = addItem(to: menu, "Launch at Login", #selector(toggleLaunchAtLogin), target: self)
         menu.addItem(.separator())

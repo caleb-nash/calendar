@@ -189,6 +189,36 @@ final class PanelController: NSObject {
         panel.makeFirstResponder(webView)
     }
 
+    /// Signs into an extra Google account; the current default stays the default.
+    @objc func addGoogleAccount() {
+        load(URL(string: "https://accounts.google.com/AddSession?continue=https://www.google.com")!)
+    }
+
+    /// Google's default account is the first one signed in. Signing out of every Google account
+    /// in these windows and then signing in again makes the next account the default, and it
+    /// stays that way across restarts. Claude, Roblox and other sites stay signed in.
+    @objc func changeDefaultGoogleAccount() {
+        let alert = NSAlert()
+        alert.messageText = "Change your default Google account?"
+        alert.informativeText = "This signs every Google account out of Claude Mini. Sign in with the account you want as the default first, then add any others afterwards with ✦ → Add Google Account."
+        alert.addButton(withTitle: "Sign Out and Continue")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        Task {
+            let store = configuration.websiteDataStore
+            let types = WKWebsiteDataStore.allWebsiteDataTypes()
+            let googleDomains = ["google.com", "youtube.com", "gstatic.com", "googleusercontent.com", "googleapis.com"]
+            let records = await store.dataRecords(ofTypes: types).filter { record in
+                googleDomains.contains { record.displayName == $0 || record.displayName.hasSuffix("." + $0) }
+            }
+            await store.removeData(ofTypes: types, for: records)
+            Log.window.info("Removed \(records.count) Google data records to change the default account")
+            load(URL(string: "https://accounts.google.com/ServiceLogin?continue=https://www.google.com")!)
+        }
+    }
+
     /// Hands the current page to Google Chrome (or the default browser if Chrome isn't installed).
     @objc func openInChrome() {
         guard let url = webView.url else { return }

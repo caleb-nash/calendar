@@ -47,6 +47,11 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 - **Email (recommended):** Enter your email. If you get a code, type it into the window. If you only get a link, right-click it in the email, choose **Copy Link**, then pick **✦ → Sign In with Link from Clipboard**.
 - **Google:** Google sometimes blocks sign-in inside embedded windows. If it does, use email instead. It signs you into the same account.
 
+### Google accounts (⌥M window)
+
+- **✦ → Add Google Account…** signs in another account. Switch between them from your profile picture on any Google page.
+- **✦ → Change Default Google Account…** signs every Google account out of Claude Mini. Sign in with the account you want as the default **first**, then add the others. The default stays the same after restarts.
+
 ## Shortcuts
 
 | Keys | Action |
