@@ -1,22 +1,27 @@
 import AppKit
 import WebKit
 
-/// Owns the floating panel and the claude.ai web view. The page is loaded at launch and kept
-/// alive while hidden, so summoning the panel is instant.
+/// Owns one floating panel and its web view (Claude, Web or Roblox). The page is loaded at
+/// launch and kept alive while hidden, so summoning the panel is instant.
 @MainActor
 final class PanelController: NSObject {
+    let site: Site
     let panel: FloatingPanel
     let webView: WKWebView
+    private let addressField: NSTextField
     private var popupWindows: [NSWindow] = []
     /// The app that was frontmost when the panel opened, so focus can go back to it.
     private var previousApp: NSRunningApplication?
     /// Called when the panel was ordered front but macOS didn't actually put it on screen.
     var onPresentationBlocked: ((String) -> Void)?
-    private static let frameName = "ClaudeMiniPanel"
-    private static let zoomKey = "pageZoom"
+    // Claude keeps the original keys so its saved position and zoom survive the update.
+    private var frameName: String { site.isClaude ? "ClaudeMiniPanel" : "ClaudeMiniPanel-\(site.id)" }
+    private var zoomKey: String { site.isClaude ? "pageZoom" : "pageZoom-\(site.id)" }
 
-    override init() {
-        panel = FloatingPanel(contentRect: NSRect(origin: .zero, size: Config.defaultSize))
+    init(site: Site, cornerOffset: CGFloat = 0) {
+        self.site = site
+        addressField = NSTextField()
+        panel = FloatingPanel(contentRect: NSRect(origin: .zero, size: site.defaultSize))
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default() // keeps you signed in between launches
@@ -30,20 +35,20 @@ final class PanelController: NSObject {
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.setValue(false, forKey: "drawsBackground") // avoid a white flash in dark mode
-        if let zoom = UserDefaults.standard.object(forKey: Self.zoomKey) as? Double {
+        if let zoom = UserDefaults.standard.object(forKey: zoomKey) as? Double {
             webView.pageZoom = CGFloat(zoom)
         }
 
         panel.onEscape = { [weak self] in self?.hide() }
         buildLayout()
 
-        let restored = panel.setFrameUsingName(Self.frameName)
-        panel.setFrameAutosaveName(Self.frameName)
+        let restored = panel.setFrameUsingName(frameName)
+        panel.setFrameAutosaveName(frameName)
         if !restored, let screen = NSScreen.main {
-            placeInCorner(of: screen)
+            placeInCorner(of: screen, offset: cornerOffset)
         }
 
-        webView.load(URLRequest(url: Config.newChatURL))
+        webView.load(URLRequest(url: site.homeURL))
     }
 
     // MARK: - Showing and hiding
@@ -67,14 +72,18 @@ final class PanelController: NSObject {
         panel.orderFrontRegardless()
         panel.makeKey()
         panel.makeFirstResponder(webView)
-        logState("Show requested over \(frontmost?.bundleIdentifier ?? "unknown")")
-        focusComposer()
+        logState("\(site.title) show requested over \(frontmost?.bundleIdentifier ?? "unknown")")
+        if site.isClaude {
+            focusComposer()
+        } else if site.hasAddressBar, webView.url == nil || webView.url == site.homeURL {
+            focusAddressBar()
+        }
         Task { await confirmOnScreen(retried: false) }
     }
 
     @objc func hide() {
         panel.orderOut(nil)
-        Log.window.info("Panel hidden")
+        Log.window.info("\(self.site.title, privacy: .public) panel hidden")
         // Normally this app never became active, so the other app kept focus the whole time.
         // If it did activate (file picker, presentation retry), hand focus back explicitly.
         if NSApp.isActive, let previousApp, !previousApp.isTerminated {
@@ -109,10 +118,9 @@ final class PanelController: NSObject {
 
     func diagnostics() -> String {
         """
-        Panel: visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
+        \(site.title) panel: visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
         occlusionVisible=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) \
         collectionBehavior=\(panel.collectionBehavior.rawValue) frame=\(NSStringFromRect(panel.frame))
-        Claude Mini active: \(NSApp.isActive)
         Previous app: \(previousApp?.bundleIdentifier ?? "none")
         """
     }
@@ -123,16 +131,49 @@ final class PanelController: NSObject {
 
     // MARK: - Actions (header buttons and menu items)
 
+    /// ⌘N: a new chat in Claude, the start page elsewhere.
     @objc func newChat() {
-        load(Config.newChatURL)
+        load(site.isClaude ? Config.newChatURL : site.homeURL)
     }
 
     @objc func showChats() {
+        guard site.isClaude else { return }
         load(Config.recentsURL)
+    }
+
+    @objc func goHome() {
+        load(site.homeURL)
     }
 
     @objc func goBack() {
         if webView.canGoBack { webView.goBack() }
+    }
+
+    @objc func goForward() {
+        if webView.canGoForward { webView.goForward() }
+    }
+
+    /// ⌘L in the Web panel, like a browser.
+    @objc func focusAddressBar() {
+        guard site.hasAddressBar else { return }
+        panel.makeFirstResponder(addressField)
+        addressField.currentEditor()?.selectAll(nil)
+    }
+
+    @objc private func addressEntered() {
+        guard let url = Config.url(fromAddressBar: addressField.stringValue) else { return }
+        webView.load(URLRequest(url: url))
+        panel.makeFirstResponder(webView)
+    }
+
+    /// Hands the current page to Google Chrome (or the default browser if Chrome isn't installed).
+    @objc func openInChrome() {
+        guard let url = webView.url else { return }
+        if let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") {
+            NSWorkspace.shared.open([url], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration())
+        } else {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc func reload() {
@@ -166,7 +207,7 @@ final class PanelController: NSObject {
     private func setZoom(_ zoom: CGFloat) {
         let clamped = min(max(zoom, 0.6), 1.6)
         webView.pageZoom = clamped
-        UserDefaults.standard.set(Double(clamped), forKey: Self.zoomKey)
+        UserDefaults.standard.set(Double(clamped), forKey: zoomKey)
     }
 
     /// Puts the cursor in claude.ai's message box so you can type immediately. Retries briefly
@@ -199,18 +240,37 @@ final class PanelController: NSObject {
         header.material = .titlebar
         header.blendingMode = .withinWindow
 
-        let title = NSTextField(labelWithString: "Claude")
-        title.font = .systemFont(ofSize: 12, weight: .semibold)
-        title.textColor = .secondaryLabelColor
+        let title: NSView
+        if site.hasAddressBar {
+            addressField.placeholderString = "Search or enter website"
+            addressField.font = .systemFont(ofSize: 12)
+            addressField.bezelStyle = .roundedBezel
+            addressField.lineBreakMode = .byTruncatingTail
+            addressField.target = self
+            addressField.action = #selector(addressEntered)
+            title = addressField
+        } else {
+            let label = NSTextField(labelWithString: site.title)
+            label.font = .systemFont(ofSize: 12, weight: .semibold)
+            label.textColor = .secondaryLabelColor
+            title = label
+        }
 
-        let left = NSStackView(views: [
-            headerButton("chevron.left", tip: "Back", action: #selector(goBack)),
-            headerButton("sidebar.left", tip: "Chats", action: #selector(showChats)),
-        ])
-        let right = NSStackView(views: [
-            headerButton("square.and.pencil", tip: "New chat (⌘N)", action: #selector(newChat)),
-            headerButton("xmark", tip: "Hide (Esc or \(Config.hotKeyLabel))", action: #selector(hide)),
-        ])
+        var leftButtons = [headerButton("chevron.left", tip: "Back", action: #selector(goBack))]
+        var rightButtons: [NSButton] = []
+        if site.isClaude {
+            leftButtons.append(headerButton("sidebar.left", tip: "Chats", action: #selector(showChats)))
+            rightButtons.append(headerButton("square.and.pencil", tip: "New chat (⌘N)", action: #selector(newChat)))
+        } else {
+            leftButtons.append(headerButton("chevron.right", tip: "Forward", action: #selector(goForward)))
+            leftButtons.append(headerButton("house", tip: "Home", action: #selector(goHome)))
+            if site.hasAddressBar {
+                rightButtons.append(headerButton("arrow.up.forward.app", tip: "Open in Chrome", action: #selector(openInChrome)))
+            }
+        }
+        rightButtons.append(headerButton("xmark", tip: "Hide (Esc or \(site.hotKeyLabel))", action: #selector(hide)))
+        let left = NSStackView(views: leftButtons)
+        let right = NSStackView(views: rightButtons)
         left.spacing = 2
         right.spacing = 2
 
@@ -235,12 +295,21 @@ final class PanelController: NSObject {
             right.centerYAnchor.constraint(equalTo: header.centerYAnchor),
             title.centerXAnchor.constraint(equalTo: header.centerXAnchor),
             title.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            title.leadingAnchor.constraint(greaterThanOrEqualTo: left.trailingAnchor, constant: 8),
+            title.trailingAnchor.constraint(lessThanOrEqualTo: right.leadingAnchor, constant: -8),
 
             webView.topAnchor.constraint(equalTo: header.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
+
+        if site.hasAddressBar {
+            // Fill the space between the button groups.
+            let fill = addressField.widthAnchor.constraint(equalToConstant: 2000)
+            fill.priority = .defaultLow
+            fill.isActive = true
+        }
 
         panel.contentView = container
     }
@@ -265,11 +334,11 @@ final class PanelController: NSObject {
         }
     }
 
-    private func placeInCorner(of screen: NSScreen) {
+    private func placeInCorner(of screen: NSScreen, offset: CGFloat = 0) {
         let visible = screen.visibleFrame
         var frame = panel.frame
         frame.size.height = min(frame.height, visible.height - 40)
-        frame.origin = NSPoint(x: visible.maxX - frame.width - 20, y: visible.maxY - frame.height - 20)
+        frame.origin = NSPoint(x: visible.maxX - frame.width - 20 - offset, y: visible.maxY - frame.height - 20 - offset)
         panel.setFrame(frame, display: false)
     }
 }
@@ -278,19 +347,31 @@ final class PanelController: NSObject {
 
 extension PanelController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
-        guard let url = navigationAction.request.url, url.scheme?.hasPrefix("http") == true else { return .allow }
-        // Outside links clicked in a chat open in your normal browser.
+        guard let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() else { return .allow }
+        // App links such as Roblox's Play button (roblox-player:) launch the installed app.
+        if !["http", "https", "about", "blob", "data", "file"].contains(scheme) {
+            Log.window.info("Opening app link with scheme \(scheme, privacy: .public)")
+            NSWorkspace.shared.open(url)
+            return .cancel
+        }
+        // Outside links open in your normal browser.
         if navigationAction.navigationType == .linkActivated,
            navigationAction.targetFrame?.isMainFrame == true,
-           !Config.isInternal(url), !Config.isAuth(url) {
+           !site.isInternal(url), !Config.isAuth(url) {
             NSWorkspace.shared.open(url)
             return .cancel
         }
         return .allow
     }
 
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if webView === self.webView, site.hasAddressBar, panel.firstResponder !== addressField.currentEditor() {
+            addressField.stringValue = webView.url?.absoluteString ?? ""
+        }
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView === self.webView, panel.isKeyWindow {
+        if webView === self.webView, site.isClaude, panel.isKeyWindow {
             focusComposer()
         }
     }
@@ -303,10 +384,16 @@ extension PanelController: WKUIDelegate {
                  createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url, url.scheme?.hasPrefix("http") == true,
-           !Config.isInternal(url), !Config.isAuth(url) {
-            NSWorkspace.shared.open(url)
-            return nil
+        if let url = navigationAction.request.url, url.scheme?.hasPrefix("http") == true {
+            // The Web panel keeps new-tab links in the panel itself.
+            if site.internalHosts == nil {
+                webView.load(URLRequest(url: url))
+                return nil
+            }
+            if !site.isInternal(url), !Config.isAuth(url) {
+                NSWorkspace.shared.open(url)
+                return nil
+            }
         }
         return openPopup(configuration: configuration)
     }

@@ -1,6 +1,12 @@
 # Claude Mini
 
-A small floating Claude window for macOS. Press **⌥L** (Option+L) anywhere to open it, and press **Esc** or **⌥L** again to hide it.
+Small floating windows for macOS, each with its own shortcut. Press the shortcut anywhere to open the window, and press **Esc** or the same shortcut to hide it.
+
+| Shortcut | Window |
+|---|---|
+| **⌥L** (Option+L) | Claude |
+| **⌥M** (Option+M) | Web: a mini browser with an address bar. The ↗ button opens the current page in Google Chrome. |
+| **⌥N** (Option+N) | Roblox (roblox.com). **Play** launches the Roblox app, because games can't run inside a web page. |
 
 ```
 ┌──────────────────────────────────┐
@@ -45,24 +51,24 @@ To start it automatically, open the ✦ menu bar icon and choose **Launch at Log
 
 | Keys | Action |
 |---|---|
-| ⌥L | Open / hide (works from any app) |
+| ⌥L / ⌥M / ⌥N | Open / hide Claude / Web / Roblox (works from any app) |
 | Esc | Hide |
-| ⌘N | New chat |
-| ⌘E | Chat history |
+| ⌘N | New chat (Claude) or home page (Web, Roblox) |
+| ⌘E | Chat history (Claude) |
+| ⌘L | Jump to the address bar (Web) |
+| ⌘[ / ⌘] | Back / forward |
 | ⌘R | Reload |
 | ⌘= / ⌘- / ⌘0 | Bigger / smaller / reset text |
 
 ## Changing the shortcut
 
-The shortcut is set in `Sources/ClaudeMini/Config.swift`. For example, to use **⌥Space**:
+Each window's shortcut is set in `Sources/ClaudeMini/Config.swift`. For example, to open Claude with **⌥Space**, change these three values in `static let claude`:
 
 ```swift
-static let hotKeyCode = UInt32(kVK_Space)
-static let hotKeyModifiers = UInt32(optionKey)
-static let hotKeyLabel = "⌥Space"
+hotKeyCode: UInt32(kVK_Space), hotKeyModifiers: UInt32(optionKey), hotKeyLabel: "⌥Space",
 ```
 
-Then run `./build.sh install` again. While Claude Mini is running, ⌥L opens it instead of typing the "¬" character.
+Then run `./build.sh install` again. While Claude Mini is running, ⌥L, ⌥M and ⌥N open their windows instead of typing "¬", "µ" or the ˜ accent.
 
 ## Troubleshooting
 
