@@ -64,6 +64,34 @@ static let hotKeyLabel = "⌥Space"
 
 Then run `./build.sh install` again. While Claude Mini is running, ⌥L opens it instead of typing the "¬" character.
 
+## Troubleshooting
+
+**See what happens when you press the shortcut.** Run this in Terminal, press ⌥L, and watch the output:
+
+```bash
+log stream --level info --predicate 'subsystem == "com.calebnash.ClaudeMini"'
+```
+
+A working press looks like this:
+
+```
+hotkey  Hotkey event received
+hotkey  Hotkey handler running; frontmost=com.apple.Safari secureInput=false
+window  Show requested over com.apple.Safari: visible=true key=true onActiveSpace=true ...
+window  Confirmed on screen: visible=true key=true onActiveSpace=true occlusionVisible=true ...
+```
+
+| What you see | What it means |
+|---|---|
+| A beep and **no** `Hotkey event received` | The keystroke never reached Claude Mini. macOS gave it to the frontmost app, which didn't use it and beeped. That's what happens in lockdown or kiosk apps (Safe Exam Browser, exam.net's locked mode, some games or remote-desktop apps) that take over the keyboard. Claude Mini can't and won't override that. Use it in a normal app or window instead. |
+| `Registration ... RegisterEventHotKey=-9878` at launch | Another app already uses ⌥L. Pick a different shortcut (see above). |
+| `Not on screen` then `Presentation blocked` | The shortcut worked, but the app in front kept other windows off the screen. The ✦ icon turns into ⚠︎ for a few seconds so you know it didn't open. |
+| `Message box not found` | The page hasn't loaded yet or you're signed out. Press ⌘R. |
+
+**✦ → Copy Diagnostics** copies the current state (shortcut registered, secure input, frontmost app, window level and visibility) so you can paste it into a bug report.
+
+The shortcut uses Carbon's `RegisterEventHotKey`, so it needs **no** Accessibility or Input Monitoring permission.
+
 ## Notes
 
 - Apps that use a locked-down kiosk mode (for example Safe Exam Browser) block every other window, so Claude Mini can't appear over them by design.

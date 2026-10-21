@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import ServiceManagement
 
 @MainActor
@@ -13,8 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildMainMenu()
         buildStatusItem()
 
+        panelController.onPresentationBlocked = { [weak self] appName in
+            self?.showBlockedIndicator(appName: appName)
+        }
+
         hotKey = HotKey(keyCode: Config.hotKeyCode, modifiers: Config.hotKeyModifiers) { [weak self] in
-            Task { @MainActor in self?.panelController.toggle() }
+            Task { @MainActor in
+                let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
+                Log.hotKey.info("Hotkey handler running; frontmost=\(front, privacy: .public) secureInput=\(IsSecureEventInputEnabled())")
+                self?.panelController.toggle()
+            }
         }
         if hotKey == nil {
             let alert = NSAlert()
@@ -44,11 +53,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addItem(to: menu, "Reload", #selector(PanelController.reload), target: panelController)
         menu.addItem(.separator())
         addItem(to: menu, "Sign In with Link from Clipboard", #selector(PanelController.openLinkFromClipboard), target: panelController)
+        addItem(to: menu, "Copy Diagnostics", #selector(copyDiagnostics), target: self)
         launchAtLoginItem = addItem(to: menu, "Launch at Login", #selector(toggleLaunchAtLogin), target: self)
         menu.addItem(.separator())
         addItem(to: menu, "Quit Claude Mini", #selector(NSApplication.terminate(_:)), target: NSApp)
         statusItem.menu = menu
         updateLaunchAtLoginItem()
+    }
+
+    /// Fallback when macOS or the frontmost app keeps the panel off screen: say so in the menu
+    /// bar instead of failing silently. Nothing tries to force the window over that app.
+    private func showBlockedIndicator(appName: String) {
+        guard let button = statusItem.button else { return }
+        button.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: "Claude Mini couldn't open")
+        button.toolTip = "\(appName) isn't allowing other windows on top right now. Switch to another app or window, then press \(Config.hotKeyLabel)."
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            button.image = NSImage(systemSymbolName: "sparkle", accessibilityDescription: "Claude Mini")
+            button.toolTip = nil
+        }
+    }
+
+    @objc private func copyDiagnostics() {
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let report = """
+        Claude Mini diagnostics
+        macOS: \(osVersion)
+        Shortcut: \(Config.hotKeyLabel) registered=\(hotKey != nil) (Carbon RegisterEventHotKey, needs no Accessibility/Input Monitoring permission)
+        Secure keyboard entry active: \(IsSecureEventInputEnabled())
+        Frontmost app: \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown")
+        \(panelController.diagnostics())
+        """
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report, forType: .string)
+        Log.hotKey.info("Diagnostics copied")
     }
 
     @objc private func toggleLaunchAtLogin() {

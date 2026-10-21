@@ -8,6 +8,10 @@ final class PanelController: NSObject {
     let panel: FloatingPanel
     let webView: WKWebView
     private var popupWindows: [NSWindow] = []
+    /// The app that was frontmost when the panel opened, so focus can go back to it.
+    private var previousApp: NSRunningApplication?
+    /// Called when the panel was ordered front but macOS didn't actually put it on screen.
+    var onPresentationBlocked: ((String) -> Void)?
     private static let frameName = "ClaudeMiniPanel"
     private static let zoomKey = "pageZoom"
 
@@ -53,17 +57,68 @@ final class PanelController: NSObject {
     }
 
     @objc func show() {
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        if frontmost?.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            previousApp = frontmost
+        }
         moveToScreenWithMouse()
         // orderFrontRegardless + makeKey shows the panel without activating this app,
         // so the app underneath stays active and keeps its full-screen state.
         panel.orderFrontRegardless()
         panel.makeKey()
         panel.makeFirstResponder(webView)
+        logState("Show requested over \(frontmost?.bundleIdentifier ?? "unknown")")
         focusComposer()
+        Task { await confirmOnScreen(retried: false) }
     }
 
     @objc func hide() {
         panel.orderOut(nil)
+        Log.window.info("Panel hidden")
+        // Normally this app never became active, so the other app kept focus the whole time.
+        // If it did activate (file picker, presentation retry), hand focus back explicitly.
+        if NSApp.isActive, let previousApp, !previousApp.isTerminated {
+            Log.window.info("Returning focus to \(previousApp.bundleIdentifier ?? "unknown", privacy: .public)")
+            previousApp.activate(options: [])
+        }
+    }
+
+    /// `orderFrontRegardless` only *requests* that the panel appear. Check that it really is on
+    /// the current Space and not covered, retry once with normal activation, then give up
+    /// visibly instead of leaving an invisible key window that swallows typing.
+    private func confirmOnScreen(retried: Bool) async {
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        guard panel.isVisible else { return } // dismissed in the meantime
+        if panel.isOnActiveSpace && panel.occlusionState.contains(.visible) {
+            logState("Confirmed on screen")
+            return
+        }
+        logState("Not on screen")
+        if !retried {
+            Log.window.notice("Retrying presentation with app activation")
+            NSApp.activate(ignoringOtherApps: true)
+            panel.makeKeyAndOrderFront(nil)
+            await confirmOnScreen(retried: true)
+        } else {
+            let appName = previousApp?.localizedName ?? "this app"
+            Log.window.error("Presentation blocked over \(appName, privacy: .public)")
+            hide()
+            onPresentationBlocked?(appName)
+        }
+    }
+
+    func diagnostics() -> String {
+        """
+        Panel: visible=\(panel.isVisible) key=\(panel.isKeyWindow) onActiveSpace=\(panel.isOnActiveSpace) \
+        occlusionVisible=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) \
+        collectionBehavior=\(panel.collectionBehavior.rawValue) frame=\(NSStringFromRect(panel.frame))
+        Claude Mini active: \(NSApp.isActive)
+        Previous app: \(previousApp?.bundleIdentifier ?? "none")
+        """
+    }
+
+    private func logState(_ label: String) {
+        Log.window.info("\(label, privacy: .public): visible=\(self.panel.isVisible) key=\(self.panel.isKeyWindow) onActiveSpace=\(self.panel.isOnActiveSpace) occlusionVisible=\(self.panel.occlusionState.contains(.visible)) level=\(self.panel.level.rawValue) appActive=\(NSApp.isActive)")
     }
 
     // MARK: - Actions (header buttons and menu items)
@@ -114,17 +169,26 @@ final class PanelController: NSObject {
         UserDefaults.standard.set(Double(clamped), forKey: Self.zoomKey)
     }
 
-    /// Puts the cursor in claude.ai's message box so you can type immediately.
+    /// Puts the cursor in claude.ai's message box so you can type immediately. Retries briefly
+    /// because the box may not exist yet while the page is still loading; without focus,
+    /// keystrokes hit the page body and WebKit beeps.
     private func focusComposer() {
         let script = """
         (() => {
           const el = document.querySelector('div.ProseMirror[contenteditable="true"]')
                   || document.querySelector('[contenteditable="true"]')
                   || document.querySelector('textarea');
-          if (el) { el.focus(); }
+          if (el) { el.focus(); return true; }
+          return false;
         })();
         """
-        webView.evaluateJavaScript(script, completionHandler: nil)
+        Task {
+            for _ in 0..<10 {
+                if (try? await webView.evaluateJavaScript(script)) as? Bool == true { return }
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+            Log.window.notice("Message box not found; is the page signed in and loaded?")
+        }
     }
 
     // MARK: - Layout
